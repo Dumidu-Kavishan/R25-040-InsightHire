@@ -1,0 +1,116 @@
+/* Global Styles for InsightHire - Light Blue & White Theme */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Arial', sans-serif;
+  background-color: #FAFAFA;
+  color: #2C3E50;
+  line-height: 1.6;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #E1F5FE;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4FC3F7;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #29B6F6;
+}
+
+/* Remove unnecessary animations and transitions for cleaner code */
+.MuiButton-root {
+  transition: background-color 0.2s ease !important;
+}
+
+.MuiCard-root {
+  transition: transform 0.2s ease !important;
+}
+
+/* Focus styles for accessibility */
+.MuiButton-root:focus {
+  outline: 2px solid #4FC3F7;
+  outline-offset: 2px;
+}
+
+/* Remove all TextField outlines and borders by default, but allow custom borders */
+.MuiTextField-root *,
+.MuiInput-root *,
+.MuiOutlinedInput-root *,
+.MuiFilledInput-root * {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.MuiTextField-root input {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.MuiTextField-root .MuiOutlinedInput-notchedOutline {
+  outline: none !important;
+}
+
+/* Remove focus outline specifically but allow custom borders */
+.MuiTextField-root:focus-within {
+  outline: none !important;
+}
+
+.MuiInput-root:focus-within,
+.MuiOutlinedInput-root:focus-within,
+.MuiFilledInput-root:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Global TextField styling for rounded borders on focus */
+.MuiTextField-root .MuiInput-root {
+  transition: border-color 0.2s ease, background-color 0.2s ease !important;
+}
+
+.MuiTextField-root .MuiInput-root:not(.Mui-disabled) {
+  border: 2px solid transparent !important;
+}
+
+.MuiTextField-root .MuiInput-root:not(.Mui-disabled):hover {
+  border: 2px solid #4FC3F7 !important;
+}
+
+.MuiTextField-root .MuiInput-root.Mui-focused {
+  border: 2px solid #2196F3 !important;
+  background-color: #F8FCFF !important;
+}
+
+.MuiTextField-root .MuiInput-root.Mui-error {
+  border: 2px solid #f44336 !important;
+}
+
+/* Pulse Animation for Recording Indicators */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.pulse-dot {
+  animation: pulse 2s infinite;
+}

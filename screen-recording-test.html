@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Recording Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            position: relative;
+            margin: 20px 0;
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+        video, canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .recording {
+            background: #ffeb3b;
+            color: #333;
+        }
+        .stopped {
+            background: #e0e0e0;
+            color: #666;
+        }
+        .error {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Screen Recording Test</h1>
+        <p>This is a simple test to verify screen recording functionality works in your browser.</p>
+        
+        <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="canvas" style="display: none;"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Screen Recording</button>
+            <button id="stopBtn" disabled>Stop Recording</button>
+            <button id="refreshBtn" disabled>Refresh Video</button>
+        </div>
+        
+        <div id="status" class="status stopped">
+            Ready to start screen recording
+        </div>
+        
+        <div id="info" style="margin-top: 20px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+            <h3>Instructions:</h3>
+            <ol>
+                <li>Click "Start Screen Recording"</li>
+                <li>Choose the screen/window you want to record</li>
+                <li>You should see the preview above</li>
+                <li>If preview is black, try "Refresh Video"</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const status = document.getElementById('status');
+        
+        let stream = null;
+        let isRecording = false;
+        
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', stopRecording);
+        refreshBtn.addEventListener('click', refreshVideo);
+        
+        async function startRecording() {
+            try {
+                status.textContent = 'Starting screen recording...';
+                status.className = 'status';
+                
+                const constraints = {
+                    video: {
+                        mediaSource: 'screen',
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                        frameRate: { ideal: 15, max: 30 }
+                    },
+                    audio: true
+                };
+                
+                stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+                
+                // Set up video element
+                video.srcObject = stream;
+                video.muted = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                
+                // Add event listeners
+                video.onloadedmetadata = () => {
+                    console.log('Video metadata loaded');
+                    status.textContent = '✅ Screen recording active - video preview loaded';
+                    status.className = 'status recording';
+                };
+                
+                video.onplay = () => {
+                    console.log('Video playing');
+                };
+                
+                video.onerror = (e) => {
+                    console.error('Video error:', e);
+                    status.textContent = '⚠️ Video preview error - trying canvas fallback';
+                    status.className = 'status error';
+                    tryCanvasFallback();
+                };
+                
+                // Handle stream end
+                stream.getVideoTracks()[0].addEventListener('ended', () => {
+                    stopRecording();
+                });
+                
+                await video.play();
+                
+                isRecording = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                refreshBtn.disabled = false;
+                
+                // Auto-fallback after 3 seconds if video doesn't load
+                setTimeout(() => {
+                    if (video.videoWidth === 0 || video.videoHeight === 0) {
+                        console.log('Video not displaying, trying canvas fallback');
+                        tryCanvasFallback();
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Error starting screen recording:', error);
+                status.textContent = `❌ Error: ${error.message}`;
+                status.className = 'status error';
+            }
+        }
+        
+        function stopRecording() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            video.srcObject = null;
+            canvas.style.display = 'none';
+            
+            isRecording = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            refreshBtn.disabled = true;
+            
+            status.textContent = 'Screen recording stopped';
+            status.className = 'status stopped';
+        }
+        
+        function refreshVideo() {
+            if (!stream) return;
+            
+            video.srcObject = null;
+            setTimeout(() => {
+                video.srcObject = stream;
+                video.play().catch(e => {
+                    console.error('Refresh failed, trying canvas:', e);
+                    tryCanvasFallback();
+                });
+            }, 100);
+        }
+        
+        function tryCanvasFallback() {
+            if (!stream) return;
+            
+            console.log('Starting canvas fallback');
+            const ctx = canvas.getContext('2d');
+            
+            // Create hidden video for canvas rendering
+            const hiddenVideo = document.createElement('video');
+            hiddenVideo.srcObject = stream;
+            hiddenVideo.muted = true;
+            hiddenVideo.autoplay = true;
+            hiddenVideo.playsInline = true;
+            
+            hiddenVideo.onloadedmetadata = () => {
+                canvas.width = hiddenVideo.videoWidth || 1280;
+                canvas.height = hiddenVideo.videoHeight || 720;
+                canvas.style.display = 'block';
+                video.style.display = 'none';
+                
+                status.textContent = '✅ Screen recording active - canvas fallback working';
+                status.className = 'status recording';
+                
+                function drawFrame() {
+                    if (isRecording && hiddenVideo.readyState >= 2) {
+                        ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+                    }
+                    if (isRecording) {
+                        requestAnimationFrame(drawFrame);
+                    }
+                }
+                
+                hiddenVideo.play().then(() => {
+                    drawFrame();
+                });
+            };
+        }
+    </script>
+</body>
+</html>

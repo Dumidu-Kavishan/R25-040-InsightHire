@@ -1,0 +1,40 @@
+# Flask and web server
+flask==3.0.0
+flask-cors==4.0.0
+flask-socketio==5.3.6
+
+# Firebase
+firebase-admin==6.4.0
+
+# Computer Vision and Audio Processing
+opencv-python==4.8.1.78
+numpy==1.26.2
+
+# Machine Learning (Python 3.12 compatible versions)
+scikit-learn==1.3.2
+tensorflow==2.15.0
+joblib==1.3.2
+
+# Data Processing
+pandas==2.1.4
+python-dateutil>=2.8.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Audio Processing (Python 3.12 compatible)
+librosa==0.10.1
+soundfile==0.12.1
+numba==0.58.1
+
+# Hand and Pose Detection (Python 3.12 compatible)
+mediapipe==0.10.8
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.31.0
+python-socketio==5.10.0
+
+# Additional audio dependencies
+scipy==1.11.4
+llvmlite==0.41.1

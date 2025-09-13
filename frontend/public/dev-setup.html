@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dev Setup - Set Test User</title>
+</head>
+<body>
+    <h1>Development Setup</h1>
+    <button onclick="setTestUser()">Set Test User for Development</button>
+    <div id="status"></div>
+
+    <script>
+        function setTestUser() {
+            const testUser = {
+                uid: "test-user-123",
+                email: "test@example.com",
+                displayName: "Test User"
+            };
+            
+            localStorage.setItem('user', JSON.stringify(testUser));
+            document.getElementById('status').innerHTML = '<p style="color: green;">Test user set! You can now access the dashboard.</p><p><a href="/">Go to Dashboard</a></p>';
+        }
+    </script>
+</body>
+</html>

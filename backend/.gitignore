@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+InsightHire/
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+server.log
+logs/
+
+serviceAccountKey.json
