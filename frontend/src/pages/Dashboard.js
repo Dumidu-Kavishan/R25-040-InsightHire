@@ -53,6 +53,20 @@ import InterviewScoreDisplay from '../components/InterviewScoreDisplay';
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Add keyframes styles
+  const keyframes = `
+    @keyframes slideInRight {
+      0% {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+  `;
   const [interviews, setInterviews] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +87,7 @@ const Dashboard = () => {
   const [scoreDisplayOpen, setScoreDisplayOpen] = useState(false);
   const [selectedScoreSessionId, setSelectedScoreSessionId] = useState(null);
   const [selectedScoreJobRoleId, setSelectedScoreJobRoleId] = useState(null);
+  const [expandedMenuId, setExpandedMenuId] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -82,6 +97,39 @@ const Dashboard = () => {
       console.log('⏳ Waiting for user to load...');
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close expanded menu when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Don't close if clicking on the expanded menu buttons
+      if (event.target.closest('.expanded-menu-buttons')) {
+        return;
+      }
+      
+      if (expandedMenuId) {
+        setExpandedMenuId(null);
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && expandedMenuId) {
+        setExpandedMenuId(null);
+      }
+    };
+
+    if (expandedMenuId) {
+      // Use a small delay to prevent immediate closing
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscapeKey);
+      }, 100);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [expandedMenuId]);
 
   const loadData = async () => {
     await Promise.all([
@@ -202,7 +250,20 @@ const Dashboard = () => {
     setOpenMenuId(null);
   };
 
+  const handleMenuToggle = (event, interviewId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Toggle the expanded state
+    if (expandedMenuId === interviewId) {
+      setExpandedMenuId(null);
+    } else {
+      setExpandedMenuId(interviewId);
+    }
+  };
+
   const handleDeleteClick = (interview) => {
+    setExpandedMenuId(null);
     setInterviewToDelete(interview);
     setDeleteDialogOpen(true);
     handleMenuClose();
@@ -310,7 +371,9 @@ const Dashboard = () => {
   const completedInterviews = interviews.filter(interview => interview.status === 'completed').length;
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <>
+      <style>{keyframes}</style>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header Section */}
       <Box sx={{ mb: 4 }}>
         <Typography 
@@ -476,21 +539,57 @@ const Dashboard = () => {
                            icon={getStatusIcon(interview.status)}
                            size="small"
                          />
-                         <Tooltip title="More options">
-                           <IconButton
-                             onClick={(e) => handleMenuOpen(e, interview.id)}
-                             size="small"
-                             sx={{
-                               color: '#90A4AE',
-                               '&:hover': {
-                                 color: '#42A5F5',
-                                 backgroundColor: 'rgba(66, 165, 245, 0.08)'
-                               }
-                             }}
-                           >
-                             <MoreVert />
-                           </IconButton>
-                         </Tooltip>
+                         {expandedMenuId === interview.id ? (
+                           <Box className="expanded-menu-buttons" sx={{ display: 'flex', gap: 1 }}>
+                             <IconButton
+                               onClick={(e) => handleDeleteClick(interview)}
+                               size="small"
+                               sx={(theme) => ({
+                                 color: theme.palette.error.main,
+                                 backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                 borderRadius: 2,
+                                 width: 36,
+                                 height: 36,
+                                 transition: 'all 0.3s ease',
+                                 animation: 'slideInRight 0.3s ease 0.1s both',
+                                 '&:hover': {
+                                   backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                                   transform: 'scale(1.1)',
+                                   boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
+                                 },
+                                 '&:active': {
+                                   transform: 'scale(0.95)',
+                                 }
+                               })}
+                             >
+                               <Delete sx={{ fontSize: 18 }} />
+                             </IconButton>
+                           </Box>
+                         ) : (
+                           <Tooltip title="More options">
+                             <IconButton
+                               onClick={(e) => handleMenuToggle(e, interview.id)}
+                               size="small"
+                               sx={(theme) => ({
+                                 color: theme.palette.text.secondary,
+                                 borderRadius: 2,
+                                 position: 'relative',
+                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                 '&:hover': {
+                                   color: theme.palette.primary.main,
+                                   backgroundColor: 'rgba(100, 181, 246, 0.08)',
+                                   transform: 'scale(1.1) rotate(90deg)',
+                                   boxShadow: '0 4px 12px rgba(100, 181, 246, 0.4)',
+                                 },
+                                 '&:active': {
+                                   transform: 'scale(0.95) rotate(90deg)',
+                                 }
+                               })}
+                             >
+                               <MoreVert sx={{ fontSize: 20, transition: 'transform 0.3s ease' }} />
+                             </IconButton>
+                           </Tooltip>
+                         )}
                        </Box>
                     </Box>
 
@@ -1021,6 +1120,7 @@ const Dashboard = () => {
         jobRoleId={selectedScoreJobRoleId}
       />
     </Container>
+    </>
   );
 };
 
