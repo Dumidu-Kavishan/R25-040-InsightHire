@@ -626,26 +626,15 @@ const Dashboard = () => {
                         </Button>
                       )}
                       {interview.status === 'completed' && (
-                        <>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Visibility />}
-                            onClick={() => handleViewAnalysis(interview.id)}
-                            sx={{ flex: 1 }}
-                          >
-                            View Analysis
-                          </Button>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={<Assessment />}
-                            onClick={() => handleViewScores(interview.id, interview.job_role_id)}
-                            sx={{ flex: 1, ml: 1 }}
-                          >
-                            View Scores
-                          </Button>
-                        </>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<Assessment />}
+                          onClick={() => handleViewScores(interview.id, interview.job_role_id)}
+                          sx={{ flex: 1 }}
+                        >
+                          View Scores
+                        </Button>
                       )}
                     </Box>
                   </CardContent>
