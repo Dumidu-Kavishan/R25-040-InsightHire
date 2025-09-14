@@ -87,6 +87,8 @@ const Dashboard = () => {
   const [scoreDisplayOpen, setScoreDisplayOpen] = useState(false);
   const [selectedScoreSessionId, setSelectedScoreSessionId] = useState(null);
   const [selectedScoreJobRoleId, setSelectedScoreJobRoleId] = useState(null);
+  const [preloadedScores, setPreloadedScores] = useState(null);
+  const [loadingScores, setLoadingScores] = useState(false);
   const [expandedMenuId, setExpandedMenuId] = useState(null);
 
   useEffect(() => {
@@ -293,15 +295,67 @@ const Dashboard = () => {
     setAnalysisPopupOpen(true);
   };
 
-  const handleViewScores = (sessionId, jobRoleId) => {
-    setSelectedScoreSessionId(sessionId);
-    setSelectedScoreJobRoleId(jobRoleId);
-    setScoreDisplayOpen(true);
+  const handleViewScores = async (sessionId, jobRoleId) => {
+    try {
+      // Show loading state
+      setLoadingScores(true);
+      
+      // First, load the scores data
+      console.log('🔄 Loading scores before showing modal for sessionId:', sessionId);
+      
+      const response = await fetch(`http://localhost:5000/api/interviews/${sessionId}/calculate-final-scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.uid,
+          job_role_id: jobRoleId
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Scores loaded successfully:', result);
+        
+        // Store the pre-loaded scores
+        setPreloadedScores(result.data.final_scores);
+        
+        // Set the data and open modal
+        setSelectedScoreSessionId(sessionId);
+        setSelectedScoreJobRoleId(jobRoleId);
+        setScoreDisplayOpen(true);
+      } else if (response.status === 404) {
+        // Store "no data" indicator
+        setPreloadedScores('no_data');
+        
+        // Show modal with "no data" message
+        setSelectedScoreSessionId(sessionId);
+        setSelectedScoreJobRoleId(jobRoleId);
+        setScoreDisplayOpen(true);
+      } else {
+        toast.error('Failed to load scores');
+      }
+    } catch (error) {
+      console.error('Error loading scores:', error);
+      toast.error('Failed to load scores');
+    } finally {
+      // Hide loading state
+      setLoadingScores(false);
+    }
   };
 
   const handleCloseAnalysisPopup = () => {
     setAnalysisPopupOpen(false);
     setSelectedInterviewId(null);
+  };
+
+  const handleCloseScoreDisplay = () => {
+    setScoreDisplayOpen(false);
+    setSelectedScoreSessionId(null);
+    setSelectedScoreJobRoleId(null);
+    setPreloadedScores(null);
+    setLoadingScores(false);
   };
 
   const handleDeleteCancel = () => {
@@ -888,10 +942,7 @@ const Dashboard = () => {
                 >
                   {jobRoles.map((jobRole) => (
                     <MenuItem key={jobRole.id} value={jobRole.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Work sx={{ fontSize: 20, color: 'primary.main' }} />
-                        {jobRole.name}
-                      </Box>
+                      {jobRole.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1044,10 +1095,96 @@ const Dashboard = () => {
       {/* Interview Score Display */}
       <InterviewScoreDisplay
         open={scoreDisplayOpen}
-        onClose={() => setScoreDisplayOpen(false)}
+        onClose={handleCloseScoreDisplay}
         sessionId={selectedScoreSessionId}
         jobRoleId={selectedScoreJobRoleId}
+        preloadedScores={preloadedScores}
       />
+
+      {/* Loading Overlay for Scores */}
+      <Dialog
+        open={loadingScores}
+        disableEscapeKeyDown
+        disableBackdropClick
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+          }
+        }}
+      >
+        <DialogContent sx={{ 
+          p: 4, 
+          textAlign: 'center',
+          minHeight: 200,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <Box sx={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            backgroundColor: '#3B82F6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3,
+            animation: 'pulse 2s infinite',
+            '@keyframes pulse': {
+              '0%': {
+                transform: 'scale(1)',
+                opacity: 1,
+              },
+              '50%': {
+                transform: 'scale(1.1)',
+                opacity: 0.8,
+              },
+              '100%': {
+                transform: 'scale(1)',
+                opacity: 1,
+              },
+            }
+          }}>
+            <Assessment sx={{ fontSize: 40, color: 'white' }} />
+          </Box>
+          
+          <Typography variant="h5" sx={{ 
+            fontWeight: 600, 
+            color: '#1E293B',
+            mb: 2
+          }}>
+            Loading Analysis Results
+          </Typography>
+          
+          <Typography variant="body1" sx={{ 
+            color: '#64748B',
+            mb: 3
+          }}>
+            Calculating interview scores and confidence metrics...
+          </Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress 
+              size={24} 
+              sx={{ 
+                color: '#3B82F6',
+                '& .MuiCircularProgress-circle': {
+                  strokeLinecap: 'round',
+                }
+              }} 
+            />
+            <Typography variant="body2" sx={{ color: '#64748B' }}>
+              Please wait...
+            </Typography>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Container>
     </>
   );

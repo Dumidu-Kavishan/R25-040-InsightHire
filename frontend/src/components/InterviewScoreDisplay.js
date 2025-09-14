@@ -29,26 +29,43 @@ import {
 } from '@mui/icons-material';
 import { interviewScoringService } from '../services/interviewScoringService';
 
-const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose }) => {
+const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose, preloadedScores }) => {
   const [scores, setScores] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (open && sessionId) {
-      loadScores();
+      // Use preloaded scores if available, otherwise load them
+      if (preloadedScores) {
+        console.log('📊 Using preloaded scores:', preloadedScores);
+        if (preloadedScores === 'no_data') {
+          setError('Candidate Analysis Data Empty');
+        } else {
+          setScores(preloadedScores);
+        }
+      } else if (!scores) {
+        loadScores();
+      }
     }
-  }, [open, sessionId]);
+  }, [open, sessionId, preloadedScores, scores]);
 
   const loadScores = async () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('📊 Loading scores for sessionId:', sessionId);
       const finalScores = await interviewScoringService.getFinalScores(sessionId);
+      console.log('✅ Loaded scores:', finalScores);
       setScores(finalScores.final_scores);
     } catch (err) {
-      setError('Failed to load interview scores');
-      console.error('Error loading scores:', err);
+      console.error('❌ Error loading scores:', err);
+      // Check if it's a 404 error (no analysis data available)
+      if (err.message && err.message.includes('404')) {
+        setError('Candidate Analysis Data Empty');
+      } else {
+        setError('Failed to load interview scores');
+      }
     } finally {
       setLoading(false);
     }
@@ -58,11 +75,18 @@ const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose }) => {
     setLoading(true);
     setError(null);
     try {
+      console.log('🔄 Recalculating scores for sessionId:', sessionId, 'jobRoleId:', jobRoleId);
       const result = await interviewScoringService.processAndSaveFinalScores(sessionId, jobRoleId);
+      console.log('✅ Recalculation successful:', result);
       setScores(result.final_scores);
     } catch (err) {
-      setError('Failed to recalculate scores');
-      console.error('Error recalculating scores:', err);
+      console.error('❌ Error recalculating scores:', err);
+      // Check if it's a 404 error (no analysis data available)
+      if (err.message && err.message.includes('404')) {
+        setError('Candidate Analysis Data Empty');
+      } else {
+        setError('Failed to recalculate scores');
+      }
     } finally {
       setLoading(false);
     }
