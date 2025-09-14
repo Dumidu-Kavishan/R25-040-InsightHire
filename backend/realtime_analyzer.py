@@ -10,10 +10,10 @@ import time
 import logging
 from datetime import datetime
 
-from models.face_model import FaceStressDetector
-from models.hand_model import HandConfidenceDetector
-from models.eye_model import EyeConfidenceDetector
-from models.voice_model import VoiceConfidenceDetector
+from model.face_model import FaceStressDetector
+from model.hand_model import HandConfidenceDetector
+from model.eye_model import EyeConfidenceDetector
+from model.voice_model import VoiceConfidenceDetector
 from utils.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
@@ -46,14 +46,14 @@ class RealTimeAnalyzer:
         self.model_cycle = 0  # Cycle through models to reduce CPU load
         
         # Analysis settings
-        self.analysis_interval = 5.0  # Analyze every 5 seconds for faster response
+        self.analysis_interval = 10.0  # Analyze every 10 seconds for balanced response
         self.last_analysis_time = 0
         self.last_audio_time = 0  # Track when audio was last received
         
         # Audio buffering for continuous analysis
         self.audio_buffer = []
-        self.audio_buffer_duration = 5.0  # 5 seconds buffer
-        self.voice_analysis_interval = 5.0  # Analyze every 5 seconds for faster response
+        self.audio_buffer_duration = 10.0  # 10 seconds buffer
+        self.voice_analysis_interval = 10.0  # Analyze every 10 seconds for balanced response
         self.last_voice_analysis_time = 0
         self.audio_start_time = None  # Track when audio collection started
         self.last_audio_received = 0  # Track when audio was last received
