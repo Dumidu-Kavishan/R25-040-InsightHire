@@ -120,9 +120,21 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
     
     if (selectedJobType !== 'custom') {
       const defaultLevels = jobRoleService.getDefaultConfidenceLevels(selectedJobType);
+      
+      // Find the selected job type label
+      const selectedJobTypeData = jobTypes.find(type => type.value === selectedJobType);
+      const jobRoleName = selectedJobTypeData ? selectedJobTypeData.label : '';
+      
       setFormData(prev => ({
         ...prev,
+        name: jobRoleName, // Auto-populate Job Role Name with selected Job Type
         confidence_levels: defaultLevels
+      }));
+    } else {
+      // If custom is selected, clear the name field
+      setFormData(prev => ({
+        ...prev,
+        name: ''
       }));
     }
   };
@@ -229,6 +241,7 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
                 error={!!errors.name}
                 helperText={errors.name}
                 placeholder="e.g., Software Engineer, Data Scientist"
+                disabled={jobType && jobType !== 'custom'}
               />
             </Grid>
             <Grid item xs={12}>

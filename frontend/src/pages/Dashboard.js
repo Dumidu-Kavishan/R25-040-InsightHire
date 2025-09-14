@@ -982,74 +982,14 @@ const Dashboard = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel} maxWidth="sm" fullWidth>
-        <DialogTitle sx={(theme) => ({ 
-          pb: 2,
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, #2C1810 0%, #3D2114 100%)'
-            : 'linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)',
-          borderBottom: '1px solid rgba(244, 67, 54, 0.1)'
-        })}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{
-              p: 1.5,
-              borderRadius: 2,
-              background: 'linear-gradient(135deg, #F44336 0%, #D32F2F 100%)',
-              color: 'white'
-            }}>
-              <Delete sx={{ fontSize: 24 }} />
-            </Box>
-            <Box>
-              <Typography variant="h5" sx={{ 
-                fontWeight: 700, 
-                color: '#D32F2F',
-                mb: 0.5
-              }}>
-                Delete Interview
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                This action cannot be undone
-              </Typography>
-            </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Are you sure you want to delete this interview?
-          </Typography>
-          {interviewToDelete && (
-            <Box sx={(theme) => ({ 
-              p: 2, 
-              backgroundColor: theme.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5', 
-              borderRadius: 2,
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid #555555' 
-                : '1px solid #E0E0E0'
-            })}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Interview Details:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Candidate:</strong> {interviewToDelete.candidate_name || 'Unknown'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Position:</strong> {interviewToDelete.position || 'Not specified'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Status:</strong> {interviewToDelete.status || 'scheduled'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Created:</strong> {new Date(interviewToDelete.created_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
         <DialogActions sx={(theme) => ({ 
           p: 3, 
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, #1A1A1A 0%, #2C2C2C 100%)'
             : 'linear-gradient(135deg, #FAFAFA 0%, #F0F0F0 100%)',
           borderTop: '1px solid rgba(0,0,0,0.1)',
-          gap: 2
+          gap: 2,
+          justifyContent: 'center'
         })}>
           <Button 
             onClick={handleDeleteCancel}

@@ -117,13 +117,72 @@ class AnalyticsService {
    * @returns {Promise<Object>} Candidate trends data
    */
   async getCandidateTrends() {
-    try {
-      const response = await api.get(`${this.baseURL}/candidate-trends`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching candidate trends:', error);
-      throw error;
-    }
+    // Temporarily use mock data to test chart display
+    console.log('Using mock data for candidate trends');
+    const mockData = {
+        status: 'success',
+        data: {
+          candidates: [
+            {
+              candidate_name: 'John Smith',
+              position: 'Software Engineer',
+              interview_id: '1',
+              created_at: '2024-01-15T10:00:00Z',
+              duration_minutes: 45,
+              time_points: ['Start', '25%', '50%', '75%', 'End'],
+              confidence_progression: [65, 70, 75, 80, 85],
+              stress_progression: [40, 45, 50, 35, 25],
+              final_confidence: 85,
+              final_stress: 25,
+              confidence_breakdown: {
+                voice: 80,
+                hand: 85,
+                eye: 90,
+                overall: 85
+              }
+            },
+            {
+              candidate_name: 'Sarah Johnson',
+              position: 'Data Analyst',
+              interview_id: '2',
+              created_at: '2024-01-14T14:30:00Z',
+              duration_minutes: 38,
+              time_points: ['Start', '25%', '50%', '75%', 'End'],
+              confidence_progression: [55, 60, 65, 70, 75],
+              stress_progression: [60, 55, 45, 40, 30],
+              final_confidence: 75,
+              final_stress: 30,
+              confidence_breakdown: {
+                voice: 70,
+                hand: 75,
+                eye: 80,
+                overall: 75
+              }
+            },
+            {
+              candidate_name: 'Mike Chen',
+              position: 'Product Manager',
+              interview_id: '3',
+              created_at: '2024-01-13T09:15:00Z',
+              duration_minutes: 52,
+              time_points: ['Start', '25%', '50%', '75%', 'End'],
+              confidence_progression: [70, 75, 80, 85, 90],
+              stress_progression: [30, 35, 40, 35, 20],
+              final_confidence: 90,
+              final_stress: 20,
+              confidence_breakdown: {
+                voice: 85,
+                hand: 90,
+                eye: 95,
+                overall: 90
+              }
+            }
+          ],
+          total_candidates: 3
+        }
+      };
+      
+      return mockData;
   }
 
   /**
