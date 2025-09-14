@@ -203,8 +203,8 @@ const InterviewSession = () => {
           console.log('✅ Analysis is active for this session');
           toast.success('Real-time analysis is running!');
         } else {
-          console.warn('⚠️ Analysis is not active - start interview first');
-          toast.warning('Analysis not started - click "Start Interview" to begin');
+          console.log('📊 Analysis is not active - no warning shown');
+          // Completely removed warning notifications - no popup shown
         }
       }
     };
