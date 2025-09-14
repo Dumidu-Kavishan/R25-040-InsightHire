@@ -285,19 +285,32 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
           </Box>
 
           {/* Confidence Level Sliders */}
-          <Grid container spacing={3}>
+          <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
             {/* Voice Confidence */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Mic sx={{ mr: 1, color: '#2196F3' }} />
-                    <Typography variant="h6">Voice Confidence</Typography>
+              <Card sx={{ 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <CardContent sx={{ 
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  p: 3
+                }}>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Mic sx={{ mr: 1, color: '#3B82F6' }} />
+                      <Typography variant="h6">Voice Confidence</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: '2.5em' }}>
+                      Communication and speaking confidence
+                    </Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Communication and speaking confidence
-                  </Typography>
-                  <Box sx={{ px: 2 }}>
+                  
+                  <Box sx={{ px: 2, mb: 3 }}>
                     <Slider
                       value={formData.confidence_levels.voice_confidence}
                       onChange={(e, value) => handleConfidenceChange('voice_confidence', value)}
@@ -313,7 +326,8 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
                       color="primary"
                     />
                   </Box>
-                  <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  
+                  <Box sx={{ textAlign: 'center' }}>
                     <Chip 
                       label={`${formData.confidence_levels.voice_confidence}%`} 
                       color={getConfidenceColor(formData.confidence_levels.voice_confidence)}
@@ -326,16 +340,29 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
 
             {/* Hand Confidence */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Gesture sx={{ mr: 1, color: '#9C27B0' }} />
-                    <Typography variant="h6">Hand Confidence</Typography>
+              <Card sx={{ 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <CardContent sx={{ 
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  p: 3
+                }}>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Gesture sx={{ mr: 1, color: '#60A5FA' }} />
+                      <Typography variant="h6">Hand Confidence</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: '2.5em' }}>
+                      Gesture and body language confidence
+                    </Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Gesture and body language confidence
-                  </Typography>
-                  <Box sx={{ px: 2 }}>
+                  
+                  <Box sx={{ px: 2, mb: 3 }}>
                     <Slider
                       value={formData.confidence_levels.hand_confidence}
                       onChange={(e, value) => handleConfidenceChange('hand_confidence', value)}
@@ -351,7 +378,8 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
                       color="secondary"
                     />
                   </Box>
-                  <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  
+                  <Box sx={{ textAlign: 'center' }}>
                     <Chip 
                       label={`${formData.confidence_levels.hand_confidence}%`} 
                       color={getConfidenceColor(formData.confidence_levels.hand_confidence)}
@@ -364,16 +392,29 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
 
             {/* Eye Confidence */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Visibility sx={{ mr: 1, color: '#4CAF50' }} />
-                    <Typography variant="h6">Eye Confidence</Typography>
+              <Card sx={{ 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <CardContent sx={{ 
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  p: 3
+                }}>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Visibility sx={{ mr: 1, color: '#93C5FD' }} />
+                      <Typography variant="h6">Eye Confidence</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, minHeight: '2.5em' }}>
+                      Eye contact and visual engagement
+                    </Typography>
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Eye contact and visual engagement
-                  </Typography>
-                  <Box sx={{ px: 2 }}>
+                  
+                  <Box sx={{ px: 2, mb: 3 }}>
                     <Slider
                       value={formData.confidence_levels.eye_confidence}
                       onChange={(e, value) => handleConfidenceChange('eye_confidence', value)}
@@ -389,7 +430,8 @@ const JobRoleManagement = ({ open, onClose, onSuccess, mode = 'create', jobRole 
                       color="success"
                     />
                   </Box>
-                  <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  
+                  <Box sx={{ textAlign: 'center' }}>
                     <Chip 
                       label={`${formData.confidence_levels.eye_confidence}%`} 
                       color={getConfidenceColor(formData.confidence_levels.eye_confidence)}
