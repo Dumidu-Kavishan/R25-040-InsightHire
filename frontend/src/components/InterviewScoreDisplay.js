@@ -41,6 +41,8 @@ const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose, preloadedS
         console.log('📊 Using preloaded scores:', preloadedScores);
         if (preloadedScores === 'no_data') {
           setError('Candidate Analysis Data Empty');
+        } else if (preloadedScores === 'no_records') {
+          setError('No interview records found for Candidate');
         } else {
           setScores(preloadedScores);
         }
@@ -63,6 +65,8 @@ const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose, preloadedS
       // Check if it's a 404 error (no analysis data available)
       if (err.message && err.message.includes('404')) {
         setError('Candidate Analysis Data Empty');
+      } else if (err.message && err.message.includes('No interview records found')) {
+        setError('No interview records found for Candidate');
       } else {
         setError('Failed to load interview scores');
       }
@@ -84,6 +88,8 @@ const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose, preloadedS
       // Check if it's a 404 error (no analysis data available)
       if (err.message && err.message.includes('404')) {
         setError('Candidate Analysis Data Empty');
+      } else if (err.message && err.message.includes('No interview records found')) {
+        setError('No interview records found for Candidate');
       } else {
         setError('Failed to recalculate scores');
       }
@@ -177,7 +183,12 @@ const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose, preloadedS
           <Chip 
             label={`${weight}% Weight`}
             size="small"
-            color="primary"
+            sx={{
+              backgroundColor: '#E0F2FE',
+              color: '#0369A1',
+              borderColor: '#60A5FA',
+              fontWeight: 600
+            }}
             variant="outlined"
           />
         </Box>
@@ -241,7 +252,7 @@ const InterviewScoreDisplay = ({ sessionId, jobRoleId, open, onClose, preloadedS
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%)',
         color: 'white'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>

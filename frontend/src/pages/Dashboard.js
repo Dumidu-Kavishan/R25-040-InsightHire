@@ -318,23 +318,39 @@ const Dashboard = () => {
         const result = await response.json();
         console.log('✅ Scores loaded successfully:', result);
         
-        // Store the pre-loaded scores
-        setPreloadedScores(result.data.final_scores);
-        
-        // Set the data and open modal
-        setSelectedScoreSessionId(sessionId);
-        setSelectedScoreJobRoleId(jobRoleId);
-        setScoreDisplayOpen(true);
+        // Check if the response indicates no records found
+        if (result.status === 'error' && result.message && result.message.includes('No interview records found')) {
+          console.log('📊 No interview records found for this session');
+          toast.error('No interview records found for Candidate');
+          return; // Don't open the modal
+        } else if (result.status === 'success') {
+          // Store the pre-loaded scores
+          setPreloadedScores(result.data.final_scores);
+          
+          // Set the data and open modal
+          setSelectedScoreSessionId(sessionId);
+          setSelectedScoreJobRoleId(jobRoleId);
+          setScoreDisplayOpen(true);
+        } else {
+          // For other error cases, show toast and don't open modal
+          toast.error('Candidate Analysis Data Empty');
+          return; // Don't open the modal
+        }
       } else if (response.status === 404) {
-        // Store "no data" indicator
-        setPreloadedScores('no_data');
-        
-        // Show modal with "no data" message
-        setSelectedScoreSessionId(sessionId);
-        setSelectedScoreJobRoleId(jobRoleId);
-        setScoreDisplayOpen(true);
+        // Show toast notification instead of opening modal
+        toast.error('Candidate Analysis Data Empty');
+        return; // Don't open the modal
       } else {
-        toast.error('Failed to load scores');
+        // Handle other error responses
+        const errorResult = await response.json();
+        console.log('❌ API Error Response:', errorResult);
+        
+        if (errorResult.message && errorResult.message.includes('No interview records found')) {
+          toast.error('No interview records found for Candidate');
+        } else {
+          toast.error('Candidate Analysis Data Empty');
+        }
+        return; // Don't open the modal
       }
     } catch (error) {
       console.error('Error loading scores:', error);
@@ -1130,7 +1146,7 @@ const Dashboard = () => {
             width: 80,
             height: 80,
             borderRadius: '50%',
-            backgroundColor: '#3B82F6',
+            background: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1173,7 +1189,7 @@ const Dashboard = () => {
             <CircularProgress 
               size={24} 
               sx={{ 
-                color: '#3B82F6',
+                color: '#60A5FA',
                 '& .MuiCircularProgress-circle': {
                   strokeLinecap: 'round',
                 }
