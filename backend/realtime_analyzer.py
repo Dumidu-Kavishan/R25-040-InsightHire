@@ -10,10 +10,10 @@ import time
 import logging
 from datetime import datetime
 
-from models.face_model import FaceStressDetector
-from models.hand_model import HandConfidenceDetector
-from models.eye_model import EyeConfidenceDetector
-from models.voice_model import VoiceConfidenceDetector
+from model.face_model import FaceStressDetector
+from model.hand_model import HandConfidenceDetector
+from model.eye_model import EyeConfidenceDetector
+from model.voice_model import VoiceConfidenceDetector
 from utils.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
