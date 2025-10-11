@@ -38,6 +38,7 @@ wheels/
 
 # Virtual environments
 InsightHire/
+InsightHire_Windows/
 venv/
 env/
 ENV/
