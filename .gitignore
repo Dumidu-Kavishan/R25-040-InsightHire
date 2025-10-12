@@ -41,6 +41,7 @@ InsightHire/
 venv/
 env/
 ENV/
+InsightHire_Windows/
 
 # Logs
 *.log
