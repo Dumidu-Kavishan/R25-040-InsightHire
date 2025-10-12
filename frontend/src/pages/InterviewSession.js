@@ -103,6 +103,25 @@ const InterviewSession = () => {
     emotion: 'neutral',
     updateCount: 0
   });
+
+  // Track shown notifications to prevent duplicates
+  const [shownNotifications, setShownNotifications] = useState(new Set());
+
+  // Helper function to show notification only once
+  const showNotificationOnce = (message, type = 'success') => {
+    if (!shownNotifications.has(message)) {
+      setShownNotifications(prev => new Set([...prev, message]));
+      if (type === 'success') {
+        toast.success(message);
+      } else if (type === 'error') {
+        toast.error(message);
+      } else if (type === 'info') {
+        toast.info(message);
+      } else if (type === 'warning') {
+        toast.warning(message);
+      }
+    }
+  };
   // Separate chart data for stress and confidence
   const [stressChartData, setStressChartData] = useState({
     labels: [],
@@ -201,10 +220,10 @@ const InterviewSession = () => {
         setIsAnalysisActive(data.analysis_active);
         if (data.analysis_active) {
           console.log('✅ Analysis is active for this session');
-          toast.success('Real-time analysis is running!');
+          showNotificationOnce('Real-time analysis is running!');
         } else {
-          console.warn('⚠️ Analysis is not active - start interview first');
-          toast.warning('Analysis not started - click "Start Interview" to begin');
+          console.log('📊 Analysis is not active - no warning shown');
+          // Completely removed warning notifications - no popup shown
         }
       }
     };
@@ -359,9 +378,9 @@ const InterviewSession = () => {
         console.log('✅ Interview started successfully:', response);
         if (response.analysis_started) {
           setIsAnalysisActive(true);
-          toast.success('Interview, screen recording, and analysis started successfully!');
+          showNotificationOnce('Interview, screen recording, and analysis started successfully!');
         } else {
-          toast.success('Interview and screen recording started successfully!');
+          showNotificationOnce('Interview and screen recording started successfully!');
         }
       } else {
         toast.error(response.message || 'Failed to start interview');
@@ -420,7 +439,7 @@ const InterviewSession = () => {
         console.log('🧹 Cleaning up all connections and stopping analysis');
         cleanupInterview();
         
-        toast.success('Interview and screen recording stopped successfully!');
+        showNotificationOnce('Interview and screen recording stopped successfully!');
         
         // Navigate to dashboard after successful stop and cleanup
         navigate('/dashboard');
@@ -482,7 +501,7 @@ const InterviewSession = () => {
         setIsScreenRecording(true);
         setRecordingStatus('recording');
         console.log('✅ Screen recording started successfully!');
-        toast.success('Screen recording started successfully!');
+        // Notification will be shown by ScreenRecorder component
       } else {
         console.error('❌ ScreenRecorder ref not available');
         throw new Error('ScreenRecorder not available');

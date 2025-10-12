@@ -53,6 +53,114 @@ import InterviewScoreDisplay from '../components/InterviewScoreDisplay';
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Add keyframes styles
+  const keyframes = `
+    @keyframes slideInRight {
+      0% {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-20px) rotate(180deg);
+      }
+    }
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+      }
+    }
+    @keyframes slideInUp {
+      0% {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+    @keyframes scaleIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-10px);
+      }
+      60% {
+        transform: translateY(-5px);
+      }
+    }
+    @keyframes glow {
+      0%, 100% {
+        box-shadow: 0 0 20px rgba(79, 195, 247, 0.3);
+      }
+      50% {
+        box-shadow: 0 0 30px rgba(79, 195, 247, 0.6);
+      }
+    }
+    @keyframes wiggle {
+      0%, 100% {
+        transform: rotate(0deg);
+      }
+      25% {
+        transform: rotate(5deg);
+      }
+      75% {
+        transform: rotate(-5deg);
+      }
+    }
+    @keyframes sparkle {
+      0%, 100% {
+        opacity: 0;
+        transform: scale(0);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+  `;
   const [interviews, setInterviews] = useState([]);
   const [jobRoles, setJobRoles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +181,9 @@ const Dashboard = () => {
   const [scoreDisplayOpen, setScoreDisplayOpen] = useState(false);
   const [selectedScoreSessionId, setSelectedScoreSessionId] = useState(null);
   const [selectedScoreJobRoleId, setSelectedScoreJobRoleId] = useState(null);
+  const [preloadedScores, setPreloadedScores] = useState(null);
+  const [loadingScores, setLoadingScores] = useState(false);
+  const [expandedMenuId, setExpandedMenuId] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -82,6 +193,47 @@ const Dashboard = () => {
       console.log('⏳ Waiting for user to load...');
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Inject CSS animations
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = keyframes;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close expanded menu when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Don't close if clicking on the expanded menu buttons
+      if (event.target.closest('.expanded-menu-buttons')) {
+        return;
+      }
+      
+      if (expandedMenuId) {
+        setExpandedMenuId(null);
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && expandedMenuId) {
+        setExpandedMenuId(null);
+      }
+    };
+
+    if (expandedMenuId) {
+      // Use a small delay to prevent immediate closing
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('keydown', handleEscapeKey);
+      }, 100);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [expandedMenuId]);
 
   const loadData = async () => {
     await Promise.all([
@@ -202,7 +354,20 @@ const Dashboard = () => {
     setOpenMenuId(null);
   };
 
+  const handleMenuToggle = (event, interviewId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Toggle the expanded state
+    if (expandedMenuId === interviewId) {
+      setExpandedMenuId(null);
+    } else {
+      setExpandedMenuId(interviewId);
+    }
+  };
+
   const handleDeleteClick = (interview) => {
+    setExpandedMenuId(null);
     setInterviewToDelete(interview);
     setDeleteDialogOpen(true);
     handleMenuClose();
@@ -232,15 +397,83 @@ const Dashboard = () => {
     setAnalysisPopupOpen(true);
   };
 
-  const handleViewScores = (sessionId, jobRoleId) => {
-    setSelectedScoreSessionId(sessionId);
-    setSelectedScoreJobRoleId(jobRoleId);
-    setScoreDisplayOpen(true);
+  const handleViewScores = async (sessionId, jobRoleId) => {
+    try {
+      // Show loading state
+      setLoadingScores(true);
+      
+      // First, load the scores data
+      console.log('🔄 Loading scores before showing modal for sessionId:', sessionId);
+      
+      const response = await fetch(`http://localhost:5000/api/interviews/${sessionId}/calculate-final-scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.uid,
+          job_role_id: jobRoleId
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Scores loaded successfully:', result);
+        
+        // Check if the response indicates no records found
+        if (result.status === 'error' && result.message && result.message.includes('No interview records found')) {
+          console.log('📊 No interview records found for this session');
+          toast.error('No interview records found for Candidate');
+          return; // Don't open the modal
+        } else if (result.status === 'success') {
+          // Store the pre-loaded scores
+          setPreloadedScores(result.data.final_scores);
+          
+          // Set the data and open modal
+          setSelectedScoreSessionId(sessionId);
+          setSelectedScoreJobRoleId(jobRoleId);
+          setScoreDisplayOpen(true);
+        } else {
+          // For other error cases, show toast and don't open modal
+          toast.error('Candidate Analysis Data Empty');
+          return; // Don't open the modal
+        }
+      } else if (response.status === 404) {
+        // Show toast notification instead of opening modal
+        toast.error('Candidate Analysis Data Empty');
+        return; // Don't open the modal
+      } else {
+        // Handle other error responses
+        const errorResult = await response.json();
+        console.log('❌ API Error Response:', errorResult);
+        
+        if (errorResult.message && errorResult.message.includes('No interview records found')) {
+          toast.error('No interview records found for Candidate');
+        } else {
+          toast.error('Candidate Analysis Data Empty');
+        }
+        return; // Don't open the modal
+      }
+    } catch (error) {
+      console.error('Error loading scores:', error);
+      toast.error('Failed to load scores');
+    } finally {
+      // Hide loading state
+      setLoadingScores(false);
+    }
   };
 
   const handleCloseAnalysisPopup = () => {
     setAnalysisPopupOpen(false);
     setSelectedInterviewId(null);
+  };
+
+  const handleCloseScoreDisplay = () => {
+    setScoreDisplayOpen(false);
+    setSelectedScoreSessionId(null);
+    setSelectedScoreJobRoleId(null);
+    setPreloadedScores(null);
+    setLoadingScores(false);
   };
 
   const handleDeleteCancel = () => {
@@ -310,7 +543,9 @@ const Dashboard = () => {
   const completedInterviews = interviews.filter(interview => interview.status === 'completed').length;
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <>
+      <style>{keyframes}</style>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header Section */}
       <Box sx={{ mb: 4 }}>
         <Typography 
@@ -476,21 +711,57 @@ const Dashboard = () => {
                            icon={getStatusIcon(interview.status)}
                            size="small"
                          />
-                         <Tooltip title="More options">
-                           <IconButton
-                             onClick={(e) => handleMenuOpen(e, interview.id)}
-                             size="small"
-                             sx={{
-                               color: '#90A4AE',
-                               '&:hover': {
-                                 color: '#42A5F5',
-                                 backgroundColor: 'rgba(66, 165, 245, 0.08)'
-                               }
-                             }}
-                           >
-                             <MoreVert />
-                           </IconButton>
-                         </Tooltip>
+                         {expandedMenuId === interview.id ? (
+                           <Box className="expanded-menu-buttons" sx={{ display: 'flex', gap: 1 }}>
+                             <IconButton
+                               onClick={(e) => handleDeleteClick(interview)}
+                               size="small"
+                               sx={(theme) => ({
+                                 color: theme.palette.error.main,
+                                 backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                 borderRadius: 2,
+                                 width: 36,
+                                 height: 36,
+                                 transition: 'all 0.3s ease',
+                                 animation: 'slideInRight 0.3s ease 0.1s both',
+                                 '&:hover': {
+                                   backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                                   transform: 'scale(1.1)',
+                                   boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
+                                 },
+                                 '&:active': {
+                                   transform: 'scale(0.95)',
+                                 }
+                               })}
+                             >
+                               <Delete sx={{ fontSize: 18 }} />
+                             </IconButton>
+                           </Box>
+                         ) : (
+                           <Tooltip title="More options">
+                             <IconButton
+                               onClick={(e) => handleMenuToggle(e, interview.id)}
+                               size="small"
+                               sx={(theme) => ({
+                                 color: theme.palette.text.secondary,
+                                 borderRadius: 2,
+                                 position: 'relative',
+                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                 '&:hover': {
+                                   color: theme.palette.primary.main,
+                                   backgroundColor: 'rgba(100, 181, 246, 0.08)',
+                                   transform: 'scale(1.1) rotate(90deg)',
+                                   boxShadow: '0 4px 12px rgba(100, 181, 246, 0.4)',
+                                 },
+                                 '&:active': {
+                                   transform: 'scale(0.95) rotate(90deg)',
+                                 }
+                               })}
+                             >
+                               <MoreVert sx={{ fontSize: 20, transition: 'transform 0.3s ease' }} />
+                             </IconButton>
+                           </Tooltip>
+                         )}
                        </Box>
                     </Box>
 
@@ -527,26 +798,15 @@ const Dashboard = () => {
                         </Button>
                       )}
                       {interview.status === 'completed' && (
-                        <>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Visibility />}
-                            onClick={() => handleViewAnalysis(interview.id)}
-                            sx={{ flex: 1 }}
-                          >
-                            View Analysis
-                          </Button>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={<Assessment />}
-                            onClick={() => handleViewScores(interview.id, interview.job_role_id)}
-                            sx={{ flex: 1, ml: 1 }}
-                          >
-                            View Scores
-                          </Button>
-                        </>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<Assessment />}
+                          onClick={() => handleViewScores(interview.id, interview.job_role_id)}
+                          sx={{ flex: 1 }}
+                        >
+                          View Scores
+                        </Button>
                       )}
                     </Box>
                   </CardContent>
@@ -586,7 +846,20 @@ const Dashboard = () => {
           sx: {
             borderRadius: 4,
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            position: 'relative',
+            animation: 'scaleIn 0.4s ease-out',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '4px',
+              background: 'linear-gradient(90deg, #4FC3F7 0%, #29B6F6 50%, #0288D1 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 3s ease-in-out infinite'
+            }
           }
         }}
       >
@@ -600,7 +873,20 @@ const Dashboard = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           py: 3,
-          px: 4
+          px: 4,
+          position: 'relative',
+          overflow: 'hidden',
+          animation: 'slideInUp 0.5s ease-out 0.1s both',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)',
+            animation: 'float 6s ease-in-out infinite'
+          }
         })}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{
@@ -611,15 +897,40 @@ const Dashboard = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backdropFilter: 'blur(10px)'
+              backdropFilter: 'blur(10px)',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+              animation: 'bounce 2s ease-in-out infinite, glow 3s ease-in-out infinite',
+              position: 'relative',
+              zIndex: 1,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: -2,
+                left: -2,
+                right: -2,
+                bottom: -2,
+                borderRadius: '50%',
+                background: 'linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.3))',
+                zIndex: -1,
+                animation: 'pulse 2s ease-in-out infinite'
+              }
             }}>
-              <PersonAdd sx={{ fontSize: 24 }} />
+              <PersonAdd sx={{ fontSize: 24, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
             </Box>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Typography variant="h5" sx={{ 
+                fontWeight: 700, 
+                mb: 0.5,
+                animation: 'fadeIn 0.6s ease-out 0.2s both',
+                textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
                 Create New Interview
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              <Typography variant="body2" sx={{ 
+                opacity: 0.9,
+                animation: 'fadeIn 0.6s ease-out 0.4s both'
+              }}>
                 Set up a new candidate interview session
               </Typography>
             </Box>
@@ -629,8 +940,16 @@ const Dashboard = () => {
             sx={{ 
               color: 'white',
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              transition: 'all 0.3s ease',
+              animation: 'fadeIn 0.6s ease-out 0.3s both',
+              position: 'relative',
+              zIndex: 1,
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)'
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                transform: 'scale(1.1) rotate(90deg)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
               }
             }}
           >
@@ -638,12 +957,31 @@ const Dashboard = () => {
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 4, pt: 3 }}>
-          <Box sx={{ mb: 3 }}>
+        <DialogContent sx={{ 
+          p: 4, 
+          pt: 3,
+          position: 'relative',
+          animation: 'slideInUp 0.6s ease-out 0.2s both',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'radial-gradient(circle at 80% 20%, rgba(79, 195, 247, 0.05) 0%, transparent 50%)',
+            pointerEvents: 'none',
+            zIndex: 0
+          }
+        }}>
+          <Box sx={{ mb: 3, position: 'relative', zIndex: 1 }}>
             <Typography variant="body2" sx={(theme) => ({ 
               color: theme.palette.text.secondary,
               mb: 3,
-              textAlign: 'center'
+              textAlign: 'center',
+              animation: 'fadeIn 0.7s ease-out 0.3s both',
+              fontSize: '1.1rem',
+              fontWeight: 500
             })}>
               Fill in the candidate details to start a new interview session
             </Typography>
@@ -651,8 +989,8 @@ const Dashboard = () => {
 
           <Grid container spacing={3}>
             {/* Candidate Name */}
-            <Grid item xs={12}>
-              <Box sx={{ position: 'relative' }}>
+            <Grid item xs={12} sx={{ animation: 'slideInUp 0.7s ease-out 0.4s both' }}>
+              <Box sx={{ position: 'relative', zIndex: 1 }}>
                 <TextField
                   fullWidth
                   label="Candidate Name"
@@ -668,41 +1006,48 @@ const Dashboard = () => {
                       </InputAdornment>
                     ),
                   }}
-                  sx={(theme) => ({
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 3,
-                      backgroundColor: theme.palette.background.paper,
-                      color: theme.palette.text.primary,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main',
-                          borderWidth: 2,
-                        },
-                      },
-                      '&.Mui-focused': {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main',
-                          borderWidth: 2,
-                        },
-                      },
-                    },
-                    '& .MuiInputLabel-root': {
-                      color: theme.palette.text.secondary,
-                      '&.Mui-focused': {
-                        color: 'primary.main',
-                      },
-                    },
-                    '& .MuiInputBase-input': {
-                      color: theme.palette.text.primary,
-                    },
-                  })}
+                   sx={(theme) => ({
+                     '& .MuiOutlinedInput-root': {
+                       borderRadius: 3,
+                       backgroundColor: theme.palette.background.paper,
+                       color: theme.palette.text.primary,
+                       transition: 'all 0.3s ease',
+                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                       '&:hover': {
+                         '& .MuiOutlinedInput-notchedOutline': {
+                           borderColor: 'primary.main',
+                           borderWidth: 2,
+                         },
+                         transform: 'translateY(-2px)',
+                         boxShadow: '0 4px 16px rgba(79, 195, 247, 0.15)',
+                       },
+                       '&.Mui-focused': {
+                         '& .MuiOutlinedInput-notchedOutline': {
+                           borderColor: 'primary.main',
+                           borderWidth: 2,
+                         },
+                         transform: 'translateY(-2px)',
+                         boxShadow: '0 6px 20px rgba(79, 195, 247, 0.2)',
+                         animation: 'glow 2s ease-in-out infinite'
+                       },
+                     },
+                     '& .MuiInputLabel-root': {
+                       color: theme.palette.text.secondary,
+                       transition: 'color 0.3s ease',
+                       '&.Mui-focused': {
+                         color: 'primary.main',
+                       },
+                     },
+                     '& .MuiInputBase-input': {
+                       color: theme.palette.text.primary,
+                     },
+                   })}
                 />
               </Box>
             </Grid>
 
             {/* NIC or Passport */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{ animation: 'slideInUp 0.7s ease-out 0.5s both' }}>
               <TextField
                 fullWidth
                 label="NIC or Passport Number"
@@ -743,6 +1088,7 @@ const Dashboard = () => {
                     '&.Mui-focused': {
                       color: 'primary.main',
                     },
+
                   },
                   '& .MuiInputBase-input': {
                     color: theme.palette.text.primary,
@@ -752,7 +1098,7 @@ const Dashboard = () => {
             </Grid>
 
             {/* Job Role Selection */}
-            <Grid item xs={12}>
+            <Grid item xs={12} sx={{ animation: 'slideInUp 0.7s ease-out 0.6s both' }}>
               <FormControl 
                 fullWidth 
                 required 
@@ -800,10 +1146,7 @@ const Dashboard = () => {
                 >
                   {jobRoles.map((jobRole) => (
                     <MenuItem key={jobRole.id} value={jobRole.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Work sx={{ fontSize: 20, color: 'primary.main' }} />
-                        {jobRole.name}
-                      </Box>
+                      {jobRole.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -817,7 +1160,14 @@ const Dashboard = () => {
           </Grid>
         </DialogContent>
 
-        <DialogActions sx={{ p: 4, pt: 2, gap: 2 }}>
+        <DialogActions sx={{ 
+          p: 4, 
+          pt: 2, 
+          gap: 2,
+          position: 'relative',
+          zIndex: 1,
+          animation: 'slideInUp 0.8s ease-out 0.7s both'
+        }}>
           <Button 
             onClick={handleCloseDialog}
             variant="outlined"
@@ -828,8 +1178,11 @@ const Dashboard = () => {
               textTransform: 'none',
               fontWeight: 600,
               borderWidth: 2,
+              transition: 'all 0.3s ease',
               '&:hover': {
                 borderWidth: 2,
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
               }
             }}
           >
@@ -847,10 +1200,28 @@ const Dashboard = () => {
               fontWeight: 600,
               background: 'linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%)',
               boxShadow: '0 4px 15px rgba(79, 195, 247, 0.4)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: '-100%',
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
+                transition: 'left 0.5s ease',
+              },
               '&:hover': {
                 background: 'linear-gradient(135deg, #29B6F6 0%, #0288D1 100%)',
                 boxShadow: '0 6px 20px rgba(79, 195, 247, 0.6)',
-                transform: 'translateY(-2px)',
+                transform: 'translateY(-2px) scale(1.02)',
+                '&::before': {
+                  left: '100%',
+                },
+              },
+              '&:active': {
+                transform: 'translateY(0) scale(0.98)',
               },
               transition: 'all 0.3s ease'
             }}
@@ -894,74 +1265,14 @@ const Dashboard = () => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel} maxWidth="sm" fullWidth>
-        <DialogTitle sx={(theme) => ({ 
-          pb: 2,
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, #2C1810 0%, #3D2114 100%)'
-            : 'linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)',
-          borderBottom: '1px solid rgba(244, 67, 54, 0.1)'
-        })}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{
-              p: 1.5,
-              borderRadius: 2,
-              background: 'linear-gradient(135deg, #F44336 0%, #D32F2F 100%)',
-              color: 'white'
-            }}>
-              <Delete sx={{ fontSize: 24 }} />
-            </Box>
-            <Box>
-              <Typography variant="h5" sx={{ 
-                fontWeight: 700, 
-                color: '#D32F2F',
-                mb: 0.5
-              }}>
-                Delete Interview
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                This action cannot be undone
-              </Typography>
-            </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Are you sure you want to delete this interview?
-          </Typography>
-          {interviewToDelete && (
-            <Box sx={(theme) => ({ 
-              p: 2, 
-              backgroundColor: theme.palette.mode === 'dark' ? '#2C2C2C' : '#F5F5F5', 
-              borderRadius: 2,
-              border: theme.palette.mode === 'dark' 
-                ? '1px solid #555555' 
-                : '1px solid #E0E0E0'
-            })}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Interview Details:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Candidate:</strong> {interviewToDelete.candidate_name || 'Unknown'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Position:</strong> {interviewToDelete.position || 'Not specified'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Status:</strong> {interviewToDelete.status || 'scheduled'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <strong>Created:</strong> {new Date(interviewToDelete.created_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
         <DialogActions sx={(theme) => ({ 
           p: 3, 
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, #1A1A1A 0%, #2C2C2C 100%)'
             : 'linear-gradient(135deg, #FAFAFA 0%, #F0F0F0 100%)',
           borderTop: '1px solid rgba(0,0,0,0.1)',
-          gap: 2
+          gap: 2,
+          justifyContent: 'center'
         })}>
           <Button 
             onClick={handleDeleteCancel}
@@ -1016,12 +1327,100 @@ const Dashboard = () => {
       {/* Interview Score Display */}
       <InterviewScoreDisplay
         open={scoreDisplayOpen}
-        onClose={() => setScoreDisplayOpen(false)}
+        onClose={handleCloseScoreDisplay}
         sessionId={selectedScoreSessionId}
         jobRoleId={selectedScoreJobRoleId}
+        preloadedScores={preloadedScores}
       />
+
+      {/* Loading Overlay for Scores */}
+      <Dialog
+        open={loadingScores}
+        disableEscapeKeyDown
+        disableBackdropClick
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+          }
+        }}
+      >
+        <DialogContent sx={{ 
+          p: 4, 
+          textAlign: 'center',
+          minHeight: 200,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <Box sx={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: 3,
+            animation: 'pulse 2s infinite',
+            '@keyframes pulse': {
+              '0%': {
+                transform: 'scale(1)',
+                opacity: 1,
+              },
+              '50%': {
+                transform: 'scale(1.1)',
+                opacity: 0.8,
+              },
+              '100%': {
+                transform: 'scale(1)',
+                opacity: 1,
+              },
+            }
+          }}>
+            <Assessment sx={{ fontSize: 40, color: 'white' }} />
+          </Box>
+          
+          <Typography variant="h5" sx={{ 
+            fontWeight: 600, 
+            color: '#1E293B',
+            mb: 2
+          }}>
+            Loading Analysis Results
+          </Typography>
+          
+          <Typography variant="body1" sx={{ 
+            color: '#64748B',
+            mb: 3
+          }}>
+            Calculating interview scores and confidence metrics...
+          </Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress 
+              size={24} 
+              sx={{ 
+                color: '#60A5FA',
+                '& .MuiCircularProgress-circle': {
+                  strokeLinecap: 'round',
+                }
+              }} 
+            />
+            <Typography variant="body2" sx={{ color: '#64748B' }}>
+              Please wait...
+            </Typography>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Container>
+    </>
   );
 };
 
 export default Dashboard;
+

@@ -92,6 +92,25 @@ const ScreenRecorder = forwardRef(({
     resolution: null
   });
 
+  // Track shown notifications to prevent duplicates
+  const [shownNotifications, setShownNotifications] = useState(new Set());
+
+  // Helper function to show notification only once
+  const showNotificationOnce = (message, type = 'success') => {
+    if (!shownNotifications.has(message)) {
+      setShownNotifications(prev => new Set([...prev, message]));
+      if (type === 'success') {
+        toast.success(message);
+      } else if (type === 'error') {
+        toast.error(message);
+      } else if (type === 'info') {
+        toast.info(message);
+      } else if (type === 'warning') {
+        toast.warning(message);
+      }
+    }
+  };
+
   useEffect(() => {
     return () => {
       stopRecording();
@@ -289,7 +308,7 @@ const ScreenRecorder = forwardRef(({
         audioEnabled: enableAudio,
         onAudioCapture: !!onAudioCapture
       });
-      toast.success('Screen recording started successfully!');
+      showNotificationOnce('Screen recording started successfully!');
 
     } catch (error) {
       console.error('Error starting screen recording:', error);
@@ -382,7 +401,7 @@ const ScreenRecorder = forwardRef(({
           videoRef.current.play().then(() => {
             console.log('✅ Video refresh successful - video should now be visible');
             setVideoLoaded(true);
-            toast.success('Video display refreshed successfully!');
+            showNotificationOnce('Video display refreshed successfully!');
           }).catch(e => {
             console.error('❌ Error replaying video after refresh:', e);
             console.log('🎨 Trying canvas fallback...');
