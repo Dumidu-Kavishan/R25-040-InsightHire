@@ -203,7 +203,12 @@ class InterviewScoringService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Provide more specific error messages for different status codes
+        if (response.status === 404) {
+          throw new Error(`HTTP error! status: 404 - No analysis data found for this candidate`);
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
       }
 
       return await response.json();
@@ -270,6 +275,14 @@ class InterviewScoringService {
    */
   async processAndSaveFinalScores(sessionId, jobRoleId) {
     try {
+      const userId = this.getUserId();
+      console.log('🔄 API Call - processAndSaveFinalScores:', {
+        sessionId,
+        jobRoleId,
+        userId,
+        url: `${API_BASE_URL}/api/interviews/${sessionId}/calculate-final-scores`
+      });
+      
       // Use the backend endpoint to calculate and save scores
       const response = await fetch(`${API_BASE_URL}/api/interviews/${sessionId}/calculate-final-scores`, {
         method: 'POST',
@@ -277,24 +290,32 @@ class InterviewScoringService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: this.getUserId(),
+          user_id: userId,
           job_role_id: jobRoleId
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Provide more specific error messages for different status codes
+        if (response.status === 404) {
+          throw new Error(`HTTP error! status: 404 - No analysis data found for this candidate`);
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
       }
 
       const result = await response.json();
+      console.log('📊 API Response - processAndSaveFinalScores:', result);
       
       if (result.status === 'success') {
+        console.log('✅ Success - Final scores:', result.data.final_scores);
         return {
           success: true,
           final_scores: result.data.final_scores,
           saved_data: result.data.saved_data
         };
       } else {
+        console.error('❌ API Error:', result.message);
         throw new Error(result.message || 'Failed to calculate final scores');
       }
     } catch (error) {

@@ -46,23 +46,24 @@ class RealTimeAnalyzer:
         self.model_cycle = 0  # Cycle through models to reduce CPU load
         
         # Analysis settings
-        self.analysis_interval = 10.0  # Analyze every 10 seconds
+        self.analysis_interval = 5.0  # Analyze every 5 seconds for faster response
         self.last_analysis_time = 0
         self.last_audio_time = 0  # Track when audio was last received
         
-        # Audio buffering for continuous 10-second analysis
+        # Audio buffering for continuous analysis
         self.audio_buffer = []
-        self.audio_buffer_duration = 10.0  # 10 seconds
-        self.voice_analysis_interval = 10.0  # Analyze every 10 seconds
+        self.audio_buffer_duration = 5.0  # 5 seconds buffer
+        self.voice_analysis_interval = 5.0  # Analyze every 5 seconds for faster response
         self.last_voice_analysis_time = 0
         self.audio_start_time = None  # Track when audio collection started
+        self.last_audio_received = 0  # Track when audio was last received
         
         # Results storage
         self.current_results = {
             'face_stress': {'stress_level': 'no_data', 'confidence': 0.0},
             'hand_confidence': {'confidence_level': 'no_data', 'confidence': 0.0},
             'eye_confidence': {'confidence_level': 'no_data', 'confidence': 0.0},
-            'voice_confidence': {'confidence_level': 'unknown', 'confidence': 0.0, 'emotion': 'neutral'}
+            'voice_confidence': {'confidence_level': 'unknown', 'confidence': 0.0, 'emotion': 'neutral', 'method': 'initialized'}
         }
     
     def start_analysis(self):
@@ -81,6 +82,25 @@ class RealTimeAnalyzer:
         # Set flags to stop immediately
         self.is_running = False
         self.analysis_in_progress = False
+        
+        # Perform immediate analysis on any remaining audio before stopping
+        if self.audio_buffer:
+            logger.info(f"🎤 Performing final voice analysis on {len(self.audio_buffer)} remaining audio chunks")
+            try:
+                self._perform_voice_analysis()
+                # Set final voice state
+                self.current_results['voice_confidence'] = {
+                    'confidence_level': 'session_stopped',
+                    'confidence': 0.0,
+                    'emotion': 'session_stopped',
+                    'method': 'session_stopped',
+                    'timestamp': datetime.now().isoformat()
+                }
+                # Save final results
+                self.save_results(self.current_results)
+                logger.info("🎤 ✅ Final voice analysis completed")
+            except Exception as e:
+                logger.error(f"🎤 Error in final voice analysis: {e}")
         
         # Clear queues first to stop any pending processing
         self._clear_queues()
@@ -107,7 +127,7 @@ class RealTimeAnalyzer:
             'face_stress': {'stress_level': 'unknown', 'confidence': 0},
             'hand_confidence': {'confidence_level': 'unknown', 'confidence': 0},
             'eye_confidence': {'confidence_level': 'unknown', 'confidence': 0},
-            'voice_confidence': {'confidence_level': 'unknown', 'confidence': 0},
+            'voice_confidence': {'confidence_level': 'no_audio', 'confidence': 0, 'emotion': 'no_audio', 'method': 'session_stopped'},
             'overall': {'confidence_score': 0.5, 'stress_score': 0.5}
         }
         
@@ -209,7 +229,14 @@ class RealTimeAnalyzer:
                 else:
                     logger.debug(f"⏳ Waiting for analysis: {time_since_last:.1f}s / {self.analysis_interval}s")
                 
-                time.sleep(1.0)  # Check every 1 second instead of 0.1 seconds
+                # Check for audio stops more frequently
+                current_time = time.time()
+                if hasattr(self, 'last_audio_received') and self.last_audio_received > 0:
+                    time_since_last_audio = current_time - self.last_audio_received
+                    if time_since_last_audio > 2.0 and self.audio_buffer:
+                        self.process_audio_stop()
+                
+                time.sleep(0.5)  # Check every 0.5 seconds for faster response
                 
             except Exception as e:
                 logger.error(f"Error in analysis loop: {e}")
@@ -242,13 +269,23 @@ class RealTimeAnalyzer:
             if latest_audio is not None:
                 self._analyze_audio(latest_audio[0], latest_audio[1])
             else:
-                # Check if no audio has been received for too long (only clear buffer, don't reset confidence)
+                # Check if no audio has been received for too long
                 current_time = time.time()
-                if self.last_audio_time > 0 and (current_time - self.last_audio_time) > 10.0:  # 10 seconds timeout
+                if self.last_audio_time > 0 and (current_time - self.last_audio_time) > 5.0:  # 5 seconds timeout (reduced from 10)
                     if self.audio_buffer:
-                        logger.warning("🎤 No audio received for 10+ seconds, clearing audio buffer")
+                        logger.warning("🎤 No audio received for 5+ seconds, clearing audio buffer")
                         self.audio_buffer.clear()
                         self.audio_start_time = None  # Reset timing for next audio session
+                    
+                    # Reset voice confidence to indicate no audio
+                    self.current_results['voice_confidence'] = {
+                        'confidence_level': 'no_audio',
+                        'confidence': 0.0,
+                        'emotion': 'no_audio',
+                        'method': 'no_audio_detected',
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    logger.info("🎤 Voice confidence reset to 'no_audio' due to timeout")
             
             # Calculate overall scores
             self._calculate_overall_scores()
@@ -333,24 +370,66 @@ class RealTimeAnalyzer:
                 'timestamp': current_time
             })
             
-            # Remove audio older than 5 seconds (rolling window)
+            # Update last audio received time
+            self.last_audio_received = current_time
+            
+            # Remove audio older than buffer duration (rolling window)
             cutoff_time = current_time - self.audio_buffer_duration
             self.audio_buffer = [item for item in self.audio_buffer if item['timestamp'] > cutoff_time]
             
-            # Perform analysis every 10 seconds from start of audio collection
+            # Perform analysis every 5 seconds from start of audio collection
             time_since_start = current_time - self.audio_start_time
             analysis_intervals_passed = int(time_since_start / self.voice_analysis_interval)
             expected_analyses = analysis_intervals_passed
             actual_analyses = int((self.last_voice_analysis_time - self.audio_start_time) / self.voice_analysis_interval) if self.last_voice_analysis_time > 0 else 0
             
-            # Check if it's time for the next 10-second analysis
-            if expected_analyses > actual_analyses and len(self.audio_buffer) >= 2:
+            # Check if it's time for the next 5-second analysis
+            if expected_analyses > actual_analyses and len(self.audio_buffer) >= 1:
                 logger.info(f"🎤 Time for voice analysis #{expected_analyses + 1} (after {time_since_start:.1f}s)")
+                logger.info(f"🎤 Audio buffer has {len(self.audio_buffer)} chunks")
                 self._perform_voice_analysis()
                 self.last_voice_analysis_time = current_time
+            elif len(self.audio_buffer) >= 1 and self.last_voice_analysis_time == 0:
+                # Fallback: perform analysis if we have audio and haven't done any analysis yet
+                logger.info(f"🎤 Fallback voice analysis with {len(self.audio_buffer)} chunks")
+                self._perform_voice_analysis()
+                self.last_voice_analysis_time = current_time
+            else:
+                logger.debug(f"🎤 Voice analysis conditions: expected={expected_analyses}, actual={actual_analyses}, buffer_chunks={len(self.audio_buffer)}")
             
         except Exception as e:
             logger.error(f"🎤 Error processing audio: {e}")
+    
+    def process_audio_stop(self):
+        """Process when audio stops - perform immediate analysis on remaining buffer"""
+        try:
+            current_time = time.time()
+            time_since_last_audio = current_time - self.last_audio_received
+            
+            # If we haven't received audio for more than 2 seconds, consider it stopped
+            if time_since_last_audio > 2.0 and self.audio_buffer:
+                logger.info(f"🎤 Audio appears to have stopped (no audio for {time_since_last_audio:.1f}s)")
+                logger.info(f"🎤 Performing immediate analysis on remaining {len(self.audio_buffer)} audio chunks")
+                
+                # Perform immediate analysis on remaining buffer
+                self._perform_voice_analysis()
+                
+                # Set voice confidence to no_audio state
+                self.current_results['voice_confidence'] = {
+                    'confidence_level': 'no_audio',
+                    'confidence': 0.0,
+                    'emotion': 'no_audio',
+                    'method': 'no_audio_detected',
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                # Save results immediately
+                self.save_results(self.current_results)
+                
+                logger.info("🎤 ✅ Immediate analysis completed for audio stop")
+                
+        except Exception as e:
+            logger.error(f"🎤 Error processing audio stop: {e}")
     
     def _perform_voice_analysis(self):
         """Perform voice analysis on current 10-second buffer"""
@@ -370,13 +449,17 @@ class RealTimeAnalyzer:
             logger.info(f"🎤 Analyzing {len(combined_audio)} samples ({buffer_duration:.1f}s) from {len(self.audio_buffer)} chunks")
             
             # Voice confidence detection on combined audio
+            logger.info("🎤 Calling voice detector...")
             voice_result = self.voice_detector.detect_confidence_from_audio_data(combined_audio, sample_rate)
+            logger.info(f"🎤 Voice detector returned: {voice_result}")
+            
             if voice_result and 'confidence_level' in voice_result:
                 self.current_results['voice_confidence'] = voice_result
                 emotion = voice_result.get('emotion', 'neutral')
                 confidence = voice_result.get('confidence', 0.0)
                 level = voice_result.get('confidence_level', 'unknown')
-                logger.info(f"🎤 ✅ Voice analysis result: {emotion} → {level} (confidence: {confidence:.2f})")
+                method = voice_result.get('method', 'unknown')
+                logger.info(f"🎤 ✅ Voice analysis result: {emotion} → {level} (confidence: {confidence:.2f}, method: {method})")
             else:
                 logger.warning("🎤 Voice analysis returned no valid result")
                 # Keep previous result instead of resetting
