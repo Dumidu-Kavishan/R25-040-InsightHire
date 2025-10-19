@@ -740,6 +740,7 @@ class RealTimeAnalyzer:
                     'confidence': 1,
                     'confidence_level': 'confident',
                     'hands_detected': hand_confidence.get('hands_detected', 0),
+                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ ADD THIS
                     'method': hand_confidence.get('method', 'unknown'),
                     'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
                 }
@@ -749,6 +750,7 @@ class RealTimeAnalyzer:
                     'confidence': 0,
                     'confidence_level': 'not_confident',
                     'hands_detected': hand_confidence.get('hands_detected', 0),
+                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ ADD THIS
                     'method': hand_confidence.get('method', 'unknown'),
                     'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
                 }
