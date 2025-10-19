@@ -1,345 +1,436 @@
 """
-Voice Confidence Detection Model for InsightHire
-Based on EDUGuard pattern with enhanced error handling
+Voice Confidence Detection Script for InsightHire
+Based on EDUGuard model integration pattern
 """
 import numpy as np
+import tensorflow as tf
 import os
+import sys
 import logging
 import json
+import pickle
 from datetime import datetime
+import librosa
+import io
 
-# Try to import dependencies
-try:
-    import tensorflow as tf
-    TENSORFLOW_AVAILABLE = True
-except ImportError:
-    TENSORFLOW_AVAILABLE = False
-    tf = None
+# Add parent directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:
-    import librosa
-    LIBROSA_AVAILABLE = True
-except ImportError:
-    LIBROSA_AVAILABLE = False
-    librosa = None
+from utils.database import DatabaseManager
 
-try:
-    import joblib
-    JOBLIB_AVAILABLE = True
-except ImportError:
-    JOBLIB_AVAILABLE = False
-    joblib = None
-
-# Import fallback models
-try:
-    from .fallback_models import FallbackVoiceDetector
-    from .improved_voice_detector import ImprovedVoiceDetector, MLVoiceDetector
-    from .pretrained_voice_detector import PretrainedVoiceDetector
-except ImportError:
-    from fallback_models import FallbackVoiceDetector
-    from improved_voice_detector import ImprovedVoiceDetector, MLVoiceDetector
-    from pretrained_voice_detector import PretrainedVoiceDetector
-
-logger = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('VoiceConfidenceDetection')
 
 class VoiceConfidenceDetector:
     def __init__(self):
-        self.fallback_detector = FallbackVoiceDetector()
-        self.improved_detector = ImprovedVoiceDetector()
-        self.ml_detector = MLVoiceDetector()
-        self.pretrained_detector = PretrainedVoiceDetector()
         self.model = None
         self.scaler = None
         self.encoder = None
-        self.model_loaded = False
-        self.base_path = "/Users/dumidu/Downloads/InsightHire/Models"
-        
         self.load_model()
-        
-        if not self.model_loaded:
-            logger.info("🔄 Using pre-trained voice emotion detection model")
-        else:
-            logger.info("🔄 Using ML model + pre-trained voice emotion detection")
+        self.load_preprocessing_tools()
     
     def load_model(self):
+        """Load the voice confidence detection model"""
         try:
-            # Construct the full path to the model files
-            model_json_path = os.path.join(self.base_path, "Voice", "Confident_model.json")
-            model_weights_path = os.path.join(self.base_path, "Voice", "Confident_model.weights.h5")
-            scaler_path = os.path.join(self.base_path, "Voice", "scaler2.pickle")
-            encoder_path = os.path.join(self.base_path, "Voice", "encoder2.pickle")
-            
-            logger.info(f"Loading voice model from: {model_json_path} and {model_weights_path}")
-            
-            if not os.path.exists(model_json_path) or not os.path.exists(model_weights_path):
-                logger.error(f"Model files not found: {model_json_path} or {model_weights_path}")
-                return False
-            
-            if not TENSORFLOW_AVAILABLE:
-                logger.warning("TensorFlow not available, using fallback voice detector")
-                return False
-            
-            # Load model architecture from JSON
-            with open(model_json_path, 'r') as json_file:
-                model_json = json_file.read()
-            
-            # Fix TensorFlow compatibility issues with the JSON
-            model_json_fixed = model_json.replace('"batch_shape"', '"input_shape"')
-            
-            # Create model from JSON with proper error handling
-            try:
-                self.model = tf.keras.models.model_from_json(model_json_fixed)
-                self.model.load_weights(model_weights_path)
-                logger.info("✅ Voice model architecture and weights loaded successfully")
-            except Exception as model_error:
-                logger.error(f"❌ Error loading model: {model_error}")
-                return False
-            
-            # Load preprocessing tools
-            if os.path.exists(scaler_path) and JOBLIB_AVAILABLE:
-                try:
-                    self.scaler = joblib.load(scaler_path)
-                    logger.info("✅ Voice scaler loaded successfully")
-                except Exception as scaler_error:
-                    logger.error(f"❌ Error loading scaler: {scaler_error}")
-                    self.scaler = None
-            
-            if os.path.exists(encoder_path) and JOBLIB_AVAILABLE:
-                try:
-                    self.encoder = joblib.load(encoder_path)
-                    logger.info("✅ Voice encoder loaded successfully")
-                except Exception as encoder_error:
-                    logger.error(f"❌ Error loading encoder: {encoder_error}")
-                    self.encoder = None
-            
-            # Test the model with a dummy input to ensure it works
-            try:
-                dummy_input = np.random.random((1, 40))  # Assuming 40 features
-                if self.scaler is not None:
-                    dummy_input = self.scaler.transform(dummy_input)
-                prediction = self.model.predict(dummy_input, verbose=0)
-                logger.info(f"✅ Model test prediction successful: {prediction.shape}")
-            except Exception as test_error:
-                logger.error(f"❌ Model test failed: {test_error}")
-                return False
-            
-            self.model_loaded = True
-            logger.info("✅ Voice confidence model loaded and tested successfully")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Error loading voice model: {e}")
-            self.model_loaded = False
-            return False
-    
-    def detect_confidence_from_audio_data(self, audio_data, sample_rate=22050):
-        """Detect confidence from audio data array"""
-        try:
-            # Use pre-trained emotion detection model (most accurate)
-            return self.pretrained_detector.detect_confidence_from_audio_data(audio_data, sample_rate)
+            # Use absolute path
+            model_path = "/Users/dumidu/Downloads/Projects/InsightHire/Models/Voice/best_model1_weights.keras"
+            if os.path.exists(model_path):
+                logger.info(f"Loading voice confidence model from: {model_path}")
+                # Load the model architecture first if available
+                json_path = model_path.replace('best_model1_weights.keras', 'Confident_model.json')
+                if os.path.exists(json_path):
+                    with open(json_path, 'r') as json_file:
+                        model_json = json_file.read()
+                    self.model = tf.keras.models.model_from_json(model_json)
+                    self.model.load_weights(model_path)
+                else:
+                    # Try to load weights directly
+                    self.model = tf.keras.models.load_model(model_path)
+                
+                logger.info("✅ Voice confidence model loaded successfully")
+                return
+            else:
+                raise FileNotFoundError(f"Voice confidence model not found at: {model_path}")
                 
         except Exception as e:
-            logger.error(f"Error in voice confidence detection: {e}")
-            # Fallback to improved detector
-            return self.improved_detector.detect_confidence_from_audio_data(audio_data, sample_rate)
+            logger.error(f"❌ Error loading voice confidence model: {e}")
     
-    def _advanced_detection(self, audio_data, sample_rate):
-        """Advanced voice detection using ML model and librosa"""
+    def load_preprocessing_tools(self):
+        """Load preprocessing tools (scaler and encoder)"""
         try:
+            # Load scaler with absolute path
+            scaler_path = "/Users/dumidu/Downloads/Projects/InsightHire/Models/Voice/scaler2.pickle"
+            if os.path.exists(scaler_path):
+                with open(scaler_path, 'rb') as f:
+                    self.scaler = pickle.load(f)
+                logger.info("✅ Voice scaler loaded successfully")
+            else:
+                raise FileNotFoundError(f"Voice scaler not found at: {scaler_path}")
+            
+            # Load encoder with absolute path
+            encoder_path = "/Users/dumidu/Downloads/Projects/InsightHire/Models/Voice/encoder2.pickle"
+            if os.path.exists(encoder_path):
+                with open(encoder_path, 'rb') as f:
+                    self.encoder = pickle.load(f)
+                logger.info("✅ Voice encoder loaded successfully")
+            else:
+                raise FileNotFoundError(f"Voice encoder not found at: {encoder_path}")
+                    
+        except Exception as e:
+            logger.error(f"❌ Error loading preprocessing tools: {e}")
+    
+    def extract_features(self, audio_data, sample_rate=22050):
+        """Extract audio features for voice confidence detection"""
+        try:
+            # Ensure audio is the right format
             if isinstance(audio_data, list):
                 audio_data = np.array(audio_data, dtype=np.float32)
             
-            if len(audio_data) == 0:
-                return {'confidence_level': 'no_audio', 'confidence': 0.0}
+            # Make sure audio is 1D
+            if len(audio_data.shape) > 1:
+                audio_data = audio_data.flatten()
             
-            # Extract audio features using librosa
-            features = self._extract_features(audio_data, sample_rate)
+            # Normalize audio
+            if np.max(np.abs(audio_data)) > 0:
+                audio_data = audio_data / np.max(np.abs(audio_data))
             
-            if features is None:
-                return self.fallback_detector.detect_confidence_from_audio_data(audio_data, sample_rate)
+            # Extract MFCC features
+            mfccs = librosa.feature.mfcc(y=audio_data, sr=sample_rate, n_mfcc=13)
+            mfccs_mean = np.mean(mfccs, axis=1)
             
-            # Ensure we have the right number of features for the model
-            expected_features = 40  # Based on typical MFCC + other features
-            if len(features) != expected_features:
-                # Pad or truncate to expected size
-                if len(features) < expected_features:
-                    features = np.pad(features, (0, expected_features - len(features)), 'constant')
-                else:
-                    features = features[:expected_features]
+            # Extract spectral features
+            spectral_centroids = librosa.feature.spectral_centroid(y=audio_data, sr=sample_rate)
+            spectral_centroids_mean = np.mean(spectral_centroids)
             
-            # Reshape for model input (batch_size, features)
-            features = features.reshape(1, expected_features)
+            spectral_rolloff = librosa.feature.spectral_rolloff(y=audio_data, sr=sample_rate)
+            spectral_rolloff_mean = np.mean(spectral_rolloff)
             
-            # Apply scaler if available
+            spectral_bandwidth = librosa.feature.spectral_bandwidth(y=audio_data, sr=sample_rate)
+            spectral_bandwidth_mean = np.mean(spectral_bandwidth)
+            
+            # Extract zero crossing rate
+            zcr = librosa.feature.zero_crossing_rate(audio_data)
+            zcr_mean = np.mean(zcr)
+            
+            # Extract chroma features
+            chroma = librosa.feature.chroma_stft(y=audio_data, sr=sample_rate)
+            chroma_mean = np.mean(chroma, axis=1)
+            
+            # Extract tempo
+            tempo, _ = librosa.beat.beat_track(y=audio_data, sr=sample_rate)
+            
+            # Combine all features
+            features = np.concatenate([
+                mfccs_mean,
+                [spectral_centroids_mean, spectral_rolloff_mean, 
+                 spectral_bandwidth_mean, zcr_mean, tempo],
+                chroma_mean
+            ])
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error extracting audio features: {e}")
+            return None
+    
+    def preprocess_features(self, features):
+        """Preprocess extracted features for model prediction"""
+        try:
+            # Reshape features for scaling
+            features_reshaped = features.reshape(1, -1)
+            
+            # Scale features if scaler is available
             if self.scaler is not None:
-                try:
-                    features = self.scaler.transform(features)
-                except Exception as scaler_error:
-                    logger.warning(f"Scaler transformation failed: {scaler_error}")
+                features_scaled = self.scaler.transform(features_reshaped)
+            else:
+                # Manual normalization if scaler not available
+                features_scaled = (features_reshaped - np.mean(features_reshaped)) / (np.std(features_reshaped) + 1e-8)
             
-            # Predict confidence
-            prediction = self.model.predict(features, verbose=0)
+            return features_scaled
             
-            # Get the class with highest probability
-            confidence_class = np.argmax(prediction[0])
-            confidence_score = float(np.max(prediction[0]))
+        except Exception as e:
+            logger.error(f"Error preprocessing features: {e}")
+            return None
+    
+    def detect_confidence_from_audio_data(self, audio_data, sample_rate=22050):
+        """Detect voice confidence from audio data"""
+        try:
+            # Use fallback detection if model failed to load
+            if self.model is None:
+                logger.warning("Voice model not loaded, returning default confidence")
+                return 0.5
             
-            # Use improved detector for better accuracy
-            improved_result = self.improved_detector.detect_confidence_from_audio_data(audio_data, sample_rate)
+            # Extract features
+            features = self.extract_features(audio_data, sample_rate)
+            if features is None:
+                return {
+                    'confidence_level': 'feature_extraction_error',
+                    'confidence': 0.0,
+                    'error': 'Failed to extract audio features'
+                }
             
-            # Combine ML model output with improved detector
-            ml_confidence = confidence_probability
-            improved_confidence = improved_result.get('confidence_score', 0.5)
+            # Preprocess features
+            features_processed = self.preprocess_features(features)
+            if features_processed is None:
+                return {
+                    'confidence_level': 'preprocessing_error',
+                    'confidence': 0.0,
+                    'error': 'Failed to preprocess features'
+                }
             
-            # Weighted combination (70% improved detector, 30% ML model)
-            combined_confidence = (0.7 * improved_confidence) + (0.3 * ml_confidence)
+            # Make prediction
+            prediction = self.model.predict(features_processed, verbose=0)
             
-            # Determine final confidence level
-            if combined_confidence >= 0.7:
+            # Get confidence probability
+            if len(prediction[0]) == 1:
+                # Single output (sigmoid)
+                confidence_probability = float(prediction[0][0])
+            else:
+                # Multiple outputs (softmax) - take confident class
+                confidence_probability = float(prediction[0][1])  # Assuming index 1 is confident
+            
+            # Calculate audio quality metrics
+            audio_quality = self._calculate_audio_quality(audio_data, sample_rate)
+            
+            # Adjust confidence based on audio quality
+            adjusted_confidence = confidence_probability * audio_quality['quality_score']
+            
+            # Determine confidence level
+            if adjusted_confidence > 0.7:
+                confidence_level = 'very_confident'
+                confidence = adjusted_confidence
+            elif adjusted_confidence > 0.5:
                 confidence_level = 'confident'
-                binary_confidence = 1
+                confidence = adjusted_confidence
+            elif adjusted_confidence > 0.3:
+                confidence_level = 'somewhat_confident'
+                confidence = adjusted_confidence
             else:
                 confidence_level = 'not_confident'
-                binary_confidence = 0
+                confidence = 1.0 - adjusted_confidence
             
             return {
                 'confidence_level': confidence_level,
-                'confidence': binary_confidence,  # Binary value as requested
-                'confidence_score': combined_confidence,
-                'ml_confidence': ml_confidence,
-                'improved_confidence': improved_confidence,
-                'class_index': int(confidence_class),
-                'raw_confidence': confidence_score,  # Keep original score for debugging
-                'improved_metrics': improved_result.get('metrics', {}),
-                'method': 'ml_model_improved',
+                'confidence': float(confidence),
+                'raw_confidence': float(confidence_probability),
+                'audio_quality': audio_quality,
+                'feature_count': len(features),
                 'timestamp': datetime.now().isoformat()
             }
             
         except Exception as e:
-            logger.error(f"Advanced voice detection error: {e}")
-            return self.improved_detector.detect_confidence_from_audio_data(audio_data, sample_rate)
+            logger.error(f"Error detecting voice confidence: {e}")
+            return {
+                'confidence_level': 'error',
+                'confidence': 0.0,
+                'error': str(e)
+            }
     
-    def _detect_emotion_from_features(self, features):
-        """Detect emotion from audio features for emotion-based confidence mapping"""
+    def _calculate_audio_quality(self, audio_data, sample_rate):
+        """Calculate audio quality metrics"""
         try:
-            # Simple emotion detection based on audio features
-            # This is a simplified approach - in real implementation you'd use a trained emotion model
+            # Signal-to-noise ratio estimation
+            signal_power = np.mean(audio_data ** 2)
+            noise_estimate = np.var(audio_data)
+            snr = 10 * np.log10(signal_power / (noise_estimate + 1e-10))
             
-            # Extract basic audio properties from features
-            if len(features) >= 4:
-                # Use first few features as proxies for audio characteristics
-                energy_proxy = abs(features[0]) if len(features) > 0 else 0
-                pitch_proxy = abs(features[1]) if len(features) > 1 else 0
-                spectral_proxy = abs(features[2]) if len(features) > 2 else 0
-                rhythm_proxy = abs(features[3]) if len(features) > 3 else 0
-                
-                # Simple rule-based emotion detection
-                if energy_proxy > 0.5 and pitch_proxy > 0.3:
-                    return 'happy'  # High energy + pitch = happy
-                elif energy_proxy < 0.2 and pitch_proxy < 0.2:
-                    return 'sad'    # Low energy + pitch = sad
-                elif energy_proxy > 0.6 and spectral_proxy > 0.4:
-                    return 'angry'  # High energy + spectral = angry
-                elif energy_proxy < 0.3 and rhythm_proxy < 0.2:
-                    return 'fear'   # Low energy + rhythm = fear
-                else:
-                    return 'neutral'  # Default to neutral
-            else:
-                return 'neutral'  # Default if insufficient features
-                
-        except Exception as e:
-            logger.error(f"Error detecting emotion from features: {e}")
-            return 'neutral'  # Default fallback
-    
-    def _extract_features(self, audio_data, sample_rate):
-        """Extract audio features using librosa to match expected input size (2376 features)"""
-        try:
-            features = []
+            # Volume level
+            rms = np.sqrt(np.mean(audio_data ** 2))
             
-            # Ensure minimum length
-            if len(audio_data) < 1024:
-                audio_data = np.pad(audio_data, (0, 1024 - len(audio_data)), 'constant')
+            # Frequency range coverage
+            fft = np.fft.fft(audio_data)
+            freqs = np.fft.fftfreq(len(fft), 1/sample_rate)
+            magnitude = np.abs(fft)
             
-            # Extract comprehensive features to reach 2376 dimensions
+            # Check frequency coverage (speech typically 80Hz - 8kHz)
+            speech_band = (freqs >= 80) & (freqs <= 8000)
+            speech_energy = np.sum(magnitude[speech_band])
+            total_energy = np.sum(magnitude)
+            frequency_coverage = speech_energy / (total_energy + 1e-10)
             
-            # 1. MFCCs (13 coefficients × 100 frames = 1300 features)
-            mfccs = librosa.feature.mfcc(y=audio_data, sr=sample_rate, n_mfcc=13, n_fft=2048, hop_length=512)
-            if mfccs.shape[1] < 100:
-                mfccs = np.pad(mfccs, ((0, 0), (0, 100 - mfccs.shape[1])), 'constant')
-            elif mfccs.shape[1] > 100:
-                mfccs = mfccs[:, :100]
-            features.extend(mfccs.flatten())
+            # Calculate overall quality score
+            snr_score = min(1.0, max(0.0, (snr + 10) / 40))  # Normalize SNR to 0-1
+            volume_score = min(1.0, max(0.0, rms * 10))       # Normalize volume
+            freq_score = min(1.0, frequency_coverage * 2)      # Normalize frequency coverage
             
-            # 2. Chroma features (12 coefficients × 50 frames = 600 features)
-            chroma = librosa.feature.chroma_stft(y=audio_data, sr=sample_rate, hop_length=512)
-            if chroma.shape[1] < 50:
-                chroma = np.pad(chroma, ((0, 0), (0, 50 - chroma.shape[1])), 'constant')
-            elif chroma.shape[1] > 50:
-                chroma = chroma[:, :50]
-            features.extend(chroma.flatten())
+            quality_score = (snr_score + volume_score + freq_score) / 3
             
-            # 3. Spectral contrast (7 coefficients × 50 frames = 350 features)
-            spectral_contrast = librosa.feature.spectral_contrast(y=audio_data, sr=sample_rate, hop_length=512)
-            if spectral_contrast.shape[1] < 50:
-                spectral_contrast = np.pad(spectral_contrast, ((0, 0), (0, 50 - spectral_contrast.shape[1])), 'constant')
-            elif spectral_contrast.shape[1] > 50:
-                spectral_contrast = spectral_contrast[:, :50]
-            features.extend(spectral_contrast.flatten())
-            
-            # 4. Zero crossing rate (1 × 100 frames = 100 features)
-            zcr = librosa.feature.zero_crossing_rate(audio_data, hop_length=512)
-            if zcr.shape[1] < 100:
-                zcr = np.pad(zcr, ((0, 0), (0, 100 - zcr.shape[1])), 'constant')
-            elif zcr.shape[1] > 100:
-                zcr = zcr[:, :100]
-            features.extend(zcr.flatten())
-            
-            # 5. Additional features to reach 2376
-            remaining_features = 2376 - len(features)
-            if remaining_features > 0:
-                # Add more spectral features
-                spectral_centroids = librosa.feature.spectral_centroid(y=audio_data, sr=sample_rate, hop_length=512)
-                spectral_rolloff = librosa.feature.spectral_rolloff(y=audio_data, sr=sample_rate, hop_length=512)
-                spectral_bandwidth = librosa.feature.spectral_bandwidth(y=audio_data, sr=sample_rate, hop_length=512)
-                
-                extra_features = np.concatenate([spectral_centroids.flatten(), 
-                                               spectral_rolloff.flatten(), 
-                                               spectral_bandwidth.flatten()])
-                
-                if len(extra_features) >= remaining_features:
-                    features.extend(extra_features[:remaining_features])
-                else:
-                    features.extend(extra_features)
-                    # Pad if still not enough
-                    features.extend([0.0] * (remaining_features - len(extra_features)))
-            
-            return np.array(features[:2376])  # Ensure exactly 2376 features
+            return {
+                'quality_score': float(quality_score),
+                'snr': float(snr),
+                'rms': float(rms),
+                'frequency_coverage': float(frequency_coverage),
+                'duration_seconds': len(audio_data) / sample_rate
+            }
             
         except Exception as e:
-            logger.error(f"Feature extraction failed: {e}")
-            return None
+            logger.warning(f"Error calculating audio quality: {e}")
+            return {
+                'quality_score': 0.5,
+                'snr': 0.0,
+                'rms': 0.0,
+                'frequency_coverage': 0.0,
+                'duration_seconds': 0.0
+            }
     
     def detect_confidence_from_frequency_data(self, frequency_data):
-        """Detect confidence from frequency domain data"""
+        """Detect confidence from frequency domain audio data"""
         try:
-            # Use fallback for frequency data
-            return self.fallback_detector.detect_confidence_from_frequency_data(frequency_data)
+            # Convert frequency data back to time domain
+            if isinstance(frequency_data, list):
+                frequency_data = np.array(frequency_data, dtype=np.float32)
+            
+            # Normalize frequency data
+            if np.max(frequency_data) > 0:
+                frequency_data = frequency_data / np.max(frequency_data)
+            
+            # Analyze frequency characteristics for confidence
+            # Higher frequencies and energy distribution can indicate confidence
+            
+            # Energy in different frequency bands
+            low_freq_energy = np.sum(frequency_data[:len(frequency_data)//4])
+            mid_freq_energy = np.sum(frequency_data[len(frequency_data)//4:3*len(frequency_data)//4])
+            high_freq_energy = np.sum(frequency_data[3*len(frequency_data)//4:])
+            
+            total_energy = low_freq_energy + mid_freq_energy + high_freq_energy
+            
+            if total_energy == 0:
+                return {
+                    'confidence_level': 'no_audio',
+                    'confidence': 0.0
+                }
+            
+            # Confidence indicators:
+            # - Balanced frequency distribution
+            # - Sufficient energy in mid frequencies (speech range)
+            # - Not too much low frequency noise
+            
+            mid_freq_ratio = mid_freq_energy / total_energy
+            high_freq_ratio = high_freq_energy / total_energy
+            low_freq_ratio = low_freq_energy / total_energy
+            
+            # Confidence score based on frequency distribution
+            confidence_score = 0.0
+            
+            # Mid frequencies are important for speech clarity
+            confidence_score += mid_freq_ratio * 0.6
+            
+            # Some high frequencies indicate clarity
+            confidence_score += min(high_freq_ratio * 2, 0.3)
+            
+            # Too much low frequency is often noise
+            confidence_score += max(0, 0.1 - low_freq_ratio * 0.5)
+            
+            # Normalize to 0-1 range
+            confidence_score = min(1.0, max(0.0, confidence_score))
+            
+            # Determine confidence level
+            if confidence_score > 0.7:
+                confidence_level = 'confident'
+            elif confidence_score > 0.4:
+                confidence_level = 'somewhat_confident'
+            else:
+                confidence_level = 'not_confident'
+            
+            return {
+                'confidence_level': confidence_level,
+                'confidence': float(confidence_score),
+                'frequency_analysis': {
+                    'low_freq_ratio': float(low_freq_ratio),
+                    'mid_freq_ratio': float(mid_freq_ratio),
+                    'high_freq_ratio': float(high_freq_ratio),
+                    'total_energy': float(total_energy)
+                },
+                'timestamp': datetime.now().isoformat()
+            }
             
         except Exception as e:
-            logger.error(f"Error in frequency analysis: {e}")
-            return {'confidence_level': 'error', 'confidence': 0.0, 'error': str(e)}
-    
-    def is_available(self):
-        """Check if the model is available"""
-        return True  # Always available due to fallback
-    
-    def get_model_info(self):
-        """Get information about the loaded model"""
-        return {
-            'model_loaded': self.model_loaded,
-            'tensorflow_available': TENSORFLOW_AVAILABLE,
-            'librosa_available': LIBROSA_AVAILABLE,
-            'scaler_loaded': self.scaler is not None,
-            'encoder_loaded': self.encoder is not None,
-            'fallback_available': True
+            logger.error(f"Error detecting confidence from frequency data: {e}")
+            return {
+                'confidence_level': 'error',
+                'confidence': 0.0,
+                'error': str(e)
+            }
+
+def save_voice_data(user_id, session_id, voice_data):
+    """Save voice confidence data to database"""
+    try:
+        if not user_id or not session_id:
+            logger.error("Missing user_id or session_id")
+            return False
+        
+        db_manager = DatabaseManager(user_id)
+        
+        analysis_data = {
+            'session_id': session_id,
+            'type': 'voice_confidence',
+            'timestamp': voice_data.get('timestamp', datetime.now().isoformat()),
+            'prediction': voice_data,
+            'model_version': '1.0'
         }
+        
+        result = db_manager.save_analysis_result(session_id, analysis_data)
+        
+        if result:
+            logger.info(f"✅ Saved voice confidence data: {voice_data['confidence_level']}")
+            return True
+        else:
+            logger.error("❌ Failed to save voice confidence data")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Error saving voice data: {e}")
+        return False
+
+# Test function
+def test_voice_confidence_detection():
+    """Test voice confidence detection with microphone"""
+    detector = VoiceConfidenceDetector()
+    
+    try:
+        import pyaudio
+        
+        # Audio recording parameters
+        CHUNK = 1024
+        FORMAT = pyaudio.paFloat32
+        CHANNELS = 1
+        RATE = 22050
+        RECORD_SECONDS = 3
+        
+        p = pyaudio.PyAudio()
+        
+        logger.info("Testing voice confidence detection. Recording for 3 seconds...")
+        
+        # Record audio
+        stream = p.open(format=FORMAT,
+                       channels=CHANNELS,
+                       rate=RATE,
+                       input=True,
+                       frames_per_buffer=CHUNK)
+        
+        frames = []
+        for _ in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+            data = stream.read(CHUNK)
+            frames.append(np.frombuffer(data, dtype=np.float32))
+        
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        
+        # Combine audio data
+        audio_data = np.concatenate(frames)
+        
+        # Detect confidence
+        result = detector.detect_confidence_from_audio_data(audio_data, RATE)
+        
+        print(f"Voice Confidence Result: {result}")
+        
+    except ImportError:
+        logger.error("PyAudio not available. Install with: pip install pyaudio")
+    except Exception as e:
+        logger.error(f"Error in voice confidence test: {e}")
+
+if __name__ == "__main__":
+    # Test the voice confidence detection
+    test_voice_confidence_detection()

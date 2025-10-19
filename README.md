@@ -52,8 +52,7 @@ pip install -r requirements.txt
 
 4. Start the backend server:
 ```bash
-chmod +x start.sh
-./start.sh
+python start.py
 ```
 
 Or manually:
@@ -177,15 +176,24 @@ REACT_APP_SOCKET_URL=http://localhost:5000
 InsightHire/
 ├── backend/
 │   ├── models/          # AI model implementations
+│   │   ├── face_model.py
+│   │   ├── hand_model.py
+│   │   ├── eye_model.py
+│   │   └── voice_model.py
 │   ├── utils/           # Database and utilities
+│   │   └── database.py
 │   ├── app.py          # Main Flask application
-│   └── realtime_analyzer.py  # Real-time analysis engine
+│   ├── realtime_analyzer.py  # Real-time analysis engine
+│   ├── firebase_config.py    # Firebase configuration
+│   ├── start.py        # Startup script
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── components/  # React components
 │   │   ├── pages/       # Application pages
 │   │   ├── contexts/    # React contexts
 │   │   └── services/    # API and socket services
+│   └── package.json
 └── Models/             # Pre-trained AI models
     ├── Face/           # Stress detection model
     ├── Hand/           # Hand confidence model

@@ -11,6 +11,7 @@ import {
   IconButton,
   Divider,
   Tooltip,
+  Chip,
 } from '@mui/material';
 import {
   Dashboard,
@@ -19,15 +20,18 @@ import {
   Logout,
   Work,
   DarkMode,
-  LightMode
+  LightMode,
+  Diamond,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { usePremiumCode } from '../contexts/PremiumCodeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { hasPremiumAccess } = usePremiumCode();
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -45,7 +49,8 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    // Redirect to root path to trigger premium code gate
+    navigate('/');
     handleClose();
   };
 
@@ -101,6 +106,7 @@ const Navbar = () => {
             alignItems: 'center', 
             mr: 4, 
             cursor: 'pointer',
+            gap: 1,
           }}
           onClick={() => handleNavigation('/dashboard')}
         >
@@ -114,6 +120,26 @@ const Navbar = () => {
           >
             InsightHire
           </Typography>
+          {hasPremiumAccess && (
+            <Tooltip title="Premium Access Active">
+              <Chip
+                icon={<Diamond />}
+                label="Premium"
+                size="small"
+                sx={{
+                  backgroundColor: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  height: 24,
+                  '& .MuiChip-icon': {
+                    color: 'white',
+                    fontSize: '1rem',
+                  },
+                }}
+              />
+            </Tooltip>
+          )}
         </Box>
 
         {/* Navigation Links */}

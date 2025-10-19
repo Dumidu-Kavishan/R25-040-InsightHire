@@ -214,6 +214,12 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOut(auth);
       localStorage.removeItem('user');
+      
+      // Clear premium access when user logs out
+      localStorage.removeItem('hasPremiumAccess');
+      localStorage.removeItem('premiumCode');
+      localStorage.removeItem('premiumUsedAt');
+      
       dispatch({ type: AUTH_ACTIONS.AUTH_LOGOUT });
       return { success: true };
     } catch (error) {
