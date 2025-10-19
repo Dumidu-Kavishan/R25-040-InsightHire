@@ -152,17 +152,22 @@ class DynamicGesturesDetector:
                 else:
                     self.logger.warning(f"⚠️ Failed to classify gesture for hand {i+1}")
             
-            # Calculate average confidence
+            # Calculate average confidence from model
             avg_confidence = total_confidence / hands_count if hands_count > 0 else 0.0
             
-            # Determine confidence level
-            confidence_level = self._determine_confidence_level(avg_confidence)
+            # Calculate gesture-based confidence for interview assessment
+            gesture_confidence = self._calculate_gesture_confidence(detected_gestures)
             
-            self.logger.info(f"📊 Final result: {confidence_level} (conf: {avg_confidence:.2f}, gestures: {detected_gestures})")
+            # Determine confidence level based on gesture assessment
+            confidence_level = self._determine_confidence_level(gesture_confidence)
+            
+            self.logger.info(f"📊 Model confidence: {avg_confidence:.2f}, Gesture confidence: {gesture_confidence:.2f}")
+            self.logger.info(f"📊 Final result: {confidence_level} (gestures: {detected_gestures})")
             
             return {
                 'confidence_level': confidence_level,
-                'confidence': float(avg_confidence),
+                'confidence': float(gesture_confidence),  # Use gesture-based confidence
+                'model_confidence': float(avg_confidence),  # Keep original model confidence
                 'gestures_detected': detected_gestures,
                 'hands_detected': hands_count,
                 'method': 'dynamic_gestures_onnx',
@@ -450,6 +455,81 @@ class DynamicGesturesDetector:
             'DRAG_AND_DROP_1', 'DRAG_AND_DROP_2', 'DRAG_AND_DROP_3',
             'CLICK', 'TAP', 'DOUBLE_TAP'
         ]
+    
+    def _get_gesture_categories(self):
+        """Categorize gestures as positive, negative, or neutral for confidence calculation"""
+        return {
+            'positive': {
+                # Static gestures - Confident/Professional
+                'palm', 'ok', 'peace', 'like', 'thumb_index', 'thumb_left', 'thumb_right', 'thumb_down',
+                'one', 'one_left', 'one_right', 'one_down', 'two_up', 'three', 'three2', 'three3', 'four',
+                'call', 'point',
+                # Dynamic gestures - Positive interaction
+                'CLICK', 'TAP', 'DOUBLE_TAP', 'SWIPE_RIGHT_1', 'SWIPE_RIGHT_2', 'SWIPE_RIGHT_3',
+                'SWIPE_UP_1', 'SWIPE_UP_2', 'SWIPE_UP_3'
+            },
+            'negative': {
+                # Static gestures - Not confident/Unprofessional
+                'dislike', 'stop', 'stop_inverted', 'fist', 'fist_inverted', 'middle_finger', 'mute',
+                'grabbing', 'grip', 'rock', 'little_finger',
+                # Dynamic gestures - Negative interaction
+                'SWIPE_LEFT_1', 'SWIPE_LEFT_2', 'SWIPE_LEFT_3', 'SWIPE_DOWN_1', 'SWIPE_DOWN_2', 'SWIPE_DOWN_3',
+                'FAST_SWIPE_DOWN'
+            },
+            'neutral': {
+                # Static gestures - Context-dependent (0.5 points)
+                'hand_down', 'hand_right', 'hand_left', 'two_up_inverted', 'two_left', 'two_right', 'two_down',
+                'three_gun', 'peace_inverted', 'half_up', 'half_left', 'half_right', 'half_down',
+                'part_hand_heart', 'part_hand_heart2',
+                # Dynamic gestures - Neutral interaction (0.5 points)
+                'ZOOM_IN', 'ZOOM_OUT', 'DRAG_AND_DROP_1', 'DRAG_AND_DROP_2', 'DRAG_AND_DROP_3', 'FAST_SWIPE_UP'
+            }
+        }
+    
+    def _calculate_gesture_confidence(self, detected_gestures):
+        """Calculate confidence based on positive/negative/neutral gesture ratio"""
+        if not detected_gestures:
+            return 0.0
+        
+        categories = self._get_gesture_categories()
+        positive_count = 0
+        negative_count = 0
+        neutral_count = 0
+        
+        # Count gesture types
+        for gesture in detected_gestures:
+            if gesture in categories['positive']:
+                positive_count += 1
+            elif gesture in categories['negative']:
+                negative_count += 1
+            elif gesture in categories['neutral']:
+                neutral_count += 1
+        
+        # Calculate total points (neutral = 0.5 points)
+        total_gestures = len(detected_gestures)
+        positive_points = positive_count + (neutral_count * 0.5)
+        
+        self.logger.info(f"🎯 Gesture analysis: Positive={positive_count}, Negative={negative_count}, Neutral={neutral_count}")
+        self.logger.info(f"📊 Points: {positive_points}/{total_gestures} = {positive_points/total_gestures:.2f}")
+        
+        # Determine confidence based on gesture ratio
+        if negative_count > 0 and positive_count > 0:
+            # Mixed gestures = 0.5 confidence
+            confidence = 0.5
+        elif negative_count > 0 and positive_count == 0:
+            # Only negative gestures = 0.0 confidence
+            confidence = 0.0
+        elif positive_points == total_gestures:
+            # All positive gestures = 1.0 confidence
+            confidence = 1.0
+        elif positive_points > negative_count:
+            # More positive than negative = 1.0 confidence
+            confidence = 1.0
+        else:
+            # Calculate proportional confidence
+            confidence = positive_points / total_gestures
+        
+        return min(1.0, max(0.0, confidence))  # Ensure 0.0-1.0 range
     
     def _determine_confidence_level(self, confidence):
         """Determine confidence level from numeric confidence"""
