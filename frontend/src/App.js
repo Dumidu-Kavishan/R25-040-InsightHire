@@ -29,13 +29,20 @@ import HRDashboard from './pages/HRDashboard';
 const PremiumCodeGate = ({ children }) => {
   const { hasPremiumAccess, isCheckingAccess } = usePremiumCode();
   const [showPremiumEntry, setShowPremiumEntry] = React.useState(false);
+  const location = window.location;
 
   React.useEffect(() => {
+    // Check if user is trying to access trial mode
+    const isTrialMode = location.search.includes('trial=true');
+    
     // If user doesn't have premium access and we're not checking, show premium entry
-    if (!hasPremiumAccess && !isCheckingAccess) {
+    // BUT allow trial mode to pass through to the login page
+    if (!hasPremiumAccess && !isCheckingAccess && !isTrialMode) {
       setShowPremiumEntry(true);
+    } else if (isTrialMode) {
+      setShowPremiumEntry(false);
     }
-  }, [hasPremiumAccess, isCheckingAccess]);
+  }, [hasPremiumAccess, isCheckingAccess, location.search]);
 
   const handleCodeValidated = (code) => {
     setShowPremiumEntry(false);
@@ -49,6 +56,11 @@ const PremiumCodeGate = ({ children }) => {
 
   if (isCheckingAccess) {
     return <LoadingSpinner />;
+  }
+
+  // Allow trial mode to pass through to login page
+  if (location.search.includes('trial=true')) {
+    return children;
   }
 
   if (!hasPremiumAccess) {

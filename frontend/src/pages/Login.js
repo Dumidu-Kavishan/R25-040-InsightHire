@@ -16,7 +16,8 @@ import {
   useMediaQuery,
   Slide,
   Zoom,
-  Chip
+  Chip,
+  Divider
 } from '@mui/material';
 import {
   Visibility,
@@ -27,10 +28,13 @@ import {
   TrendingUp,
   Analytics,
   Psychology,
-  Security
+  Security,
+  Star
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
+import trialAccountService from '../services/trialAccountService';
+import TrialAccountPopup from '../components/TrialAccountPopup';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -40,12 +44,19 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isCreatingTrial, setIsCreatingTrial] = useState(false);
+  const [trialAccount, setTrialAccount] = useState(null);
+  const [showTrialPopup, setShowTrialPopup] = useState(false);
 
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Check if user came from trial button
+  const isTrialMode = searchParams.get('trial') === 'true';
 
   const validateForm = () => {
     const newErrors = {};
@@ -100,6 +111,38 @@ const Login = () => {
         ...prev,
         [name]: ''
       }));
+    }
+  };
+
+  const handleCreateTrialAccount = async () => {
+    setIsCreatingTrial(true);
+    clearError();
+
+    try {
+      const result = await trialAccountService.createTrialAccount();
+      
+      if (result.status === 'success') {
+        setTrialAccount(result.trial_account);
+        setShowTrialPopup(true);
+      } else {
+        setErrors({ general: result.message || 'Failed to create trial account' });
+      }
+    } catch (err) {
+      setErrors({ general: 'Error creating trial account' });
+      console.error('Trial account creation error:', err);
+    } finally {
+      setIsCreatingTrial(false);
+    }
+  };
+
+  const handleTrialPopupClose = () => {
+    setShowTrialPopup(false);
+    // Auto-fill the login form with trial credentials
+    if (trialAccount) {
+      setFormData({
+        email: trialAccount.email,
+        password: trialAccount.password
+      });
     }
   };
 
@@ -357,134 +400,268 @@ const Login = () => {
                     </Fade>
                   )}
 
-                  <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
-                    <Box sx={{ mb: 3 }}>
-                      <TextField
-                        fullWidth
-                        id="email"
-                        label="Email Address"
-                        name="email"
-                        autoComplete="email"
-                        autoFocus
-                        value={formData.email}
-                        onChange={handleChange}
-                        error={!!errors.email}
-                        helperText={errors.email}
-                        variant="outlined"
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Email sx={{ color: '#2196F3' }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 3,
-                            backgroundColor: '#FAFBFD',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: '#F8FCFF',
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#4FC3F7',
-                                borderWidth: 2,
-                              },
-                            },
-                            '&.Mui-focused': {
-                              backgroundColor: '#F8FCFF',
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#2196F3',
-                                borderWidth: 2,
-                              },
-                            },
-                            '&.Mui-error': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#f44336',
-                              },
-                            },
-                          },
-                          '& .MuiInputLabel-root': {
-                            color: '#6B7280',
-                            '&.Mui-focused': {
-                              color: '#2196F3',
-                            },
-                          },
-                          '& .MuiInputBase-input': {
-                            color: '#1a1a1a',
-                          },
-                        }}
-                      />
-                    </Box>
+                  {isTrialMode ? (
+                    // Trial Mode - Show only trial account creation
+                    <Box sx={{ width: '100%' }}>
+                      <Typography variant="h4" sx={{ mb: 3, textAlign: 'center', color: '#2E7D32', fontWeight: 'bold' }}>
+                        Create Free Trial Account
+                      </Typography>
 
-                    <Box sx={{ mb: 4 }}>
-                      <TextField
+                      <Typography variant="body1" sx={{ mb: 3, textAlign: 'center', color: '#666' }}>
+                        Get instant access to InsightHire with a free trial account
+                      </Typography>
+
+                      {errors.general && (
+                        <Fade in={true}>
+                          <Alert 
+                            severity="error" 
+                            sx={{ 
+                              mb: 3, 
+                              borderRadius: 2,
+                              '& .MuiAlert-icon': {
+                                fontSize: '1.2rem',
+                              },
+                            }}
+                          >
+                            {errors.general}
+                          </Alert>
+                        </Fade>
+                      )}
+
+                      <Button
                         fullWidth
-                        name="password"
-                        label="Password"
-                        type={showPassword ? 'text' : 'password'}
-                        id="password"
-                        autoComplete="current-password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        error={!!errors.password}
-                        helperText={errors.password}
-                        variant="outlined"
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Lock sx={{ color: '#2196F3' }} />
-                            </InputAdornment>
-                          ),
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton
-                                aria-label="toggle password visibility"
-                                onClick={() => setShowPassword(!showPassword)}
-                                edge="end"
-                                sx={{ color: '#6B7280' }}
-                              >
-                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        }}
+                        variant="contained"
+                        onClick={handleCreateTrialAccount}
+                        disabled={isCreatingTrial}
                         sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 3,
-                            backgroundColor: '#FAFBFD',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: '#F8FCFF',
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#4FC3F7',
-                                borderWidth: 2,
-                              },
-                            },
-                            '&.Mui-focused': {
-                              backgroundColor: '#F8FCFF',
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#2196F3',
-                                borderWidth: 2,
-                              },
-                            },
-                            '&.Mui-error': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#f44336',
-                              },
-                            },
+                          py: 3,
+                          mb: 3,
+                          borderRadius: 3,
+                          fontSize: '1.2rem',
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+                          boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)',
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%)',
+                            boxShadow: '0 12px 35px rgba(76, 175, 80, 0.4)',
+                            transform: 'translateY(-2px)',
                           },
-                          '& .MuiInputLabel-root': {
-                            color: '#6B7280',
-                            '&.Mui-focused': {
-                              color: '#2196F3',
-                            },
+                          '&:active': {
+                            transform: 'translateY(0px)',
                           },
-                          '& .MuiInputBase-input': {
-                            color: '#1a1a1a',
+                          '&:disabled': {
+                            background: '#BBBBBB',
+                            boxShadow: 'none',
+                            transform: 'none',
                           },
                         }}
-                      />
+                      >
+                        {isCreatingTrial ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CircularProgress size={20} color="inherit" />
+                            <Typography>Creating Trial Account...</Typography>
+                          </Box>
+                        ) : (
+                          <>
+                            <Star sx={{ mr: 1 }} />
+                            Create Free Trial Account
+                          </>
+                        )}
+                      </Button>
+
+                      <Box sx={{ textAlign: 'center', mb: 2 }}>
+                        <Typography variant="body2" sx={{ color: '#666', mb: 1 }}>
+                          What you get with your free trial:
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+                          <Chip 
+                            label="2 Interviews" 
+                            color="primary" 
+                            variant="outlined"
+                            sx={{ fontSize: '0.8rem' }}
+                          />
+                          <Chip 
+                            label="2 Job Roles" 
+                            color="primary" 
+                            variant="outlined"
+                            sx={{ fontSize: '0.8rem' }}
+                          />
+                          <Chip 
+                            label="7 Days Free" 
+                            color="primary" 
+                            variant="outlined"
+                            sx={{ fontSize: '0.8rem' }}
+                          />
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#6B7280', mb: 1 }}>
+                          Already have an account?
+                        </Typography>
+                        <Link
+                          component={RouterLink}
+                          to="/login"
+                          sx={{
+                            color: '#2196F3',
+                            textDecoration: 'none',
+                            fontWeight: 600,
+                            fontSize: '1rem',
+                            position: 'relative',
+                            '&::after': {
+                              content: '""',
+                              position: 'absolute',
+                              bottom: -2,
+                              left: 0,
+                              width: 0,
+                              height: 2,
+                              background: 'linear-gradient(90deg, #4FC3F7, #2196F3)',
+                              transition: 'width 0.3s ease',
+                            },
+                            '&:hover::after': {
+                              width: '100%',
+                            },
+                            '&:hover': {
+                              color: '#1976D2',
+                            },
+                          }}
+                        >
+                          Sign In Instead
+                        </Link>
+                      </Box>
                     </Box>
+                  ) : (
+                    // Regular Login Mode - Show normal login form
+                    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+                      <Box sx={{ mb: 3 }}>
+                        <TextField
+                          fullWidth
+                          id="email"
+                          label="Email Address"
+                          name="email"
+                          autoComplete="email"
+                          autoFocus
+                          value={formData.email}
+                          onChange={handleChange}
+                          error={!!errors.email}
+                          helperText={errors.email}
+                          variant="outlined"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Email sx={{ color: '#2196F3' }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 3,
+                              backgroundColor: '#FAFBFD',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                backgroundColor: '#F8FCFF',
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: '#4FC3F7',
+                                  borderWidth: 2,
+                                },
+                              },
+                              '&.Mui-focused': {
+                                backgroundColor: '#F8FCFF',
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: '#2196F3',
+                                  borderWidth: 2,
+                                },
+                              },
+                              '&.Mui-error': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: '#f44336',
+                                },
+                              },
+                            },
+                            '& .MuiInputLabel-root': {
+                              color: '#6B7280',
+                              '&.Mui-focused': {
+                                color: '#2196F3',
+                              },
+                            },
+                            '& .MuiInputBase-input': {
+                              color: '#1a1a1a',
+                            },
+                          }}
+                        />
+                      </Box>
+
+                      <Box sx={{ mb: 4 }}>
+                        <TextField
+                          fullWidth
+                          name="password"
+                          label="Password"
+                          type={showPassword ? 'text' : 'password'}
+                          id="password"
+                          autoComplete="current-password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          error={!!errors.password}
+                          helperText={errors.password}
+                          variant="outlined"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Lock sx={{ color: '#2196F3' }} />
+                              </InputAdornment>
+                            ),
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  aria-label="toggle password visibility"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  edge="end"
+                                  sx={{ color: '#6B7280' }}
+                                >
+                                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 3,
+                              backgroundColor: '#FAFBFD',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                backgroundColor: '#F8FCFF',
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: '#4FC3F7',
+                                  borderWidth: 2,
+                                },
+                              },
+                              '&.Mui-focused': {
+                                backgroundColor: '#F8FCFF',
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: '#2196F3',
+                                  borderWidth: 2,
+                                },
+                              },
+                              '&.Mui-error': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: '#f44336',
+                                },
+                              },
+                            },
+                            '& .MuiInputLabel-root': {
+                              color: '#6B7280',
+                              '&.Mui-focused': {
+                                color: '#2196F3',
+                              },
+                            },
+                            '& .MuiInputBase-input': {
+                              color: '#1a1a1a',
+                            },
+                          }}
+                        />
+                      </Box>
 
                     <Button
                       type="submit"
@@ -526,47 +703,99 @@ const Login = () => {
                       )}
                     </Button>
 
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body2" sx={{ color: '#6B7280', mb: 1 }}>
-                        Don't have an account?
-                      </Typography>
-                      <Link
-                        component={RouterLink}
-                        to="/register"
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#6B7280', mb: 1 }}>
+                          Don't have an account?
+                        </Typography>
+                        <Link
+                          component={RouterLink}
+                          to="/register"
+                          sx={{
+                            color: '#2196F3',
+                            textDecoration: 'none',
+                            fontWeight: 600,
+                            fontSize: '1rem',
+                            position: 'relative',
+                            '&::after': {
+                              content: '""',
+                              position: 'absolute',
+                              bottom: -2,
+                              left: 0,
+                              width: 0,
+                              height: 2,
+                              background: 'linear-gradient(90deg, #4FC3F7, #2196F3)',
+                              transition: 'width 0.3s ease',
+                            },
+                            '&:hover::after': {
+                              width: '100%',
+                            },
+                            '&:hover': {
+                              color: '#1976D2',
+                            },
+                          }}
+                        >
+                          Create Account
+                        </Link>
+                      </Box>
+
+                      <Divider sx={{ my: 3 }}>
+                        <Chip label="OR" />
+                      </Divider>
+
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={() => {
+                          // Navigate to login page with trial option
+                          navigate('/login?trial=true');
+                        }}
                         sx={{
-                          color: '#2196F3',
-                          textDecoration: 'none',
+                          py: 2,
+                          mb: 2,
+                          borderRadius: 3,
+                          fontSize: '1.1rem',
                           fontWeight: 600,
-                          fontSize: '1rem',
-                          position: 'relative',
-                          '&::after': {
-                            content: '""',
-                            position: 'absolute',
-                            bottom: -2,
-                            left: 0,
-                            width: 0,
-                            height: 2,
-                            background: 'linear-gradient(90deg, #4FC3F7, #2196F3)',
-                            transition: 'width 0.3s ease',
-                          },
-                          '&:hover::after': {
-                            width: '100%',
-                          },
+                          textTransform: 'none',
+                          background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+                          boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)',
+                          transition: 'all 0.3s ease',
                           '&:hover': {
-                            color: '#1976D2',
+                            background: 'linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%)',
+                            boxShadow: '0 12px 35px rgba(76, 175, 80, 0.4)',
+                            transform: 'translateY(-2px)',
+                          },
+                          '&:active': {
+                            transform: 'translateY(0px)',
+                          },
+                          '&:disabled': {
+                            background: '#BBBBBB',
+                            boxShadow: 'none',
+                            transform: 'none',
                           },
                         }}
                       >
-                        Create Account
-                      </Link>
+                        <Star sx={{ mr: 1 }} />
+                        Start Free Trial
+                      </Button>
+
+                      <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', mb: 2 }}>
+                        Get 2 free interviews and 2 job roles to try InsightHire
+                      </Typography>
                     </Box>
-                  </Box>
+                  )}
                 </Paper>
               </Fade>
             </Box>
           </Slide>
         </Box>
       </Container>
+
+      {/* Trial Account Popup */}
+      <TrialAccountPopup
+        open={showTrialPopup}
+        onClose={handleTrialPopupClose}
+        trialAccount={trialAccount}
+      />
     </Box>
   );
 };
