@@ -268,18 +268,15 @@ const Navbar = () => {
                 minWidth: 200,
                 backgroundColor: theme.palette.background.paper,
                 boxShadow: isDarkMode 
-                  ? '0 8px 24px rgba(0, 0, 0, 0.5)' 
-                  : '0 8px 24px rgba(0, 0, 0, 0.15)',
+                  ? '0 2px 10px rgba(0, 0, 0, 0.3)' 
+                  : '0 2px 10px rgba(0, 0, 0, 0.1)',
                 border: `1px solid ${theme.palette.navbar.border}`,
                 mt: 1,
-                zIndex: 1300, // Ensure it's above other elements
                 '& .MuiMenuItem-root': {
                   px: 2,
                   py: 1.5,
                   fontSize: '0.875rem',
                   color: theme.palette.text.primary,
-                  borderRadius: 1,
-                  margin: '2px 4px',
                   '&:hover': {
                     backgroundColor: theme.palette.navbar.hover,
                   },
