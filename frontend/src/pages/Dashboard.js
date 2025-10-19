@@ -545,7 +545,15 @@ const Dashboard = () => {
   return (
     <>
       <style>{keyframes}</style>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ 
+        py: 4, 
+        overflowX: 'hidden !important', 
+        width: '100%',
+        maxWidth: '100%',
+        margin: 0,
+        paddingLeft: { xs: 2, sm: 3 },
+        paddingRight: { xs: 2, sm: 3 },
+      }}>
       {/* Header Section */}
       <Box sx={{ mb: 4 }}>
         <Typography 

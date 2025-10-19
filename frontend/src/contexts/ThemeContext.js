@@ -218,9 +218,21 @@ const darkTheme = createTheme({
   components: {
     MuiCssBaseline: {
       styleOverrides: {
+        html: {
+          overflowX: 'hidden !important',
+          width: '100%',
+          maxWidth: '100%',
+          margin: 0,
+          padding: 0,
+        },
         body: {
           backgroundColor: '#0D1117',
           color: '#F0F6FC',
+          margin: 0,
+          padding: 0,
+          overflowX: 'hidden !important',
+          width: '100%',
+          maxWidth: '100%',
           '&::-webkit-scrollbar': {
             width: '8px',
           },
@@ -234,6 +246,14 @@ const darkTheme = createTheme({
               background: '#484F58',
             },
           },
+        },
+        '#root': {
+          width: '100%',
+          maxWidth: '100%',
+          overflowX: 'hidden !important',
+        },
+        '*': {
+          boxSizing: 'border-box',
         },
       },
     },
@@ -524,6 +544,16 @@ export const ThemeProvider = ({ children }) => {
       setIsDarkMode(prefersDark);
     }
   }, []);
+
+  // Update body data attribute for CSS targeting
+  useEffect(() => {
+    document.body.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, [isDarkMode]);
 
   const toggleTheme = () => {
     const newMode = !isDarkMode;

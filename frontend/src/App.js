@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { CssBaseline, Box } from '@mui/material';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './whiteLineFix.css';
 
 // Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -87,9 +88,22 @@ const AppLayout = ({ children }) => {
     <Box sx={(theme) => ({ 
       minHeight: '100vh', 
       backgroundColor: theme.palette.background.default,
+      overflowX: 'hidden !important',
+      width: '100%',
+      maxWidth: '100%',
+      margin: 0,
+      padding: 0,
     })}>
       {isAuthenticated && <Navbar />}
-      <Box sx={{ paddingTop: isAuthenticated ? '64px' : '0' }}>
+      <Box sx={{ 
+        paddingTop: isAuthenticated ? '64px' : '0',
+        overflowX: 'hidden !important',
+        width: '100%',
+        maxWidth: '100%',
+        margin: 0,
+        paddingLeft: 0,
+        paddingRight: 0,
+      }}>
         {children}
       </Box>
     </Box>
