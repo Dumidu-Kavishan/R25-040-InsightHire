@@ -37,15 +37,6 @@ class DatabaseManager:
                 logger.error("User ID is required for profile creation")
                 return None
             
-            # Add default values for trial accounts
-            if profile_data.get('account_type') == 'trial':
-                profile_data.setdefault('interview_limit', 2)
-                profile_data.setdefault('job_role_limit', 2)
-                profile_data.setdefault('interviews_used', 0)
-                profile_data.setdefault('job_roles_used', 0)
-                profile_data.setdefault('trial_created_at', datetime.now().isoformat())
-                profile_data.setdefault('trial_expires_at', (datetime.now() + timedelta(days=7)).isoformat())
-            
             profile_data.update({
                 'created_at': datetime.now().isoformat(),
                 'updated_at': datetime.now().isoformat()

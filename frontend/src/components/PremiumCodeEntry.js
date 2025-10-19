@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Container,
   Paper,
@@ -7,9 +7,16 @@ import {
   Typography,
   Box,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Stepper,
   Step,
   StepLabel,
+  Card,
+  CardContent,
+  CardActions,
   InputAdornment,
   IconButton,
   Fade,
@@ -21,6 +28,10 @@ import {
   Chip,
   Divider,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   VpnKey,
@@ -30,13 +41,15 @@ import {
   Star,
   Security,
   Payment,
+  Lock,
   Visibility,
   VisibilityOff,
   Close,
+  ArrowForward,
   Diamond,
+  FlashOn
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
 import { usePremiumCode } from '../contexts/PremiumCodeContext';
 
 const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
@@ -44,6 +57,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
   const [premiumCode, setPremiumCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentData, setPaymentData] = useState({
     cardNumber: '',
     cardHolder: '',
@@ -53,21 +67,13 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
   });
   const [showCvv, setShowCvv] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
+  const [showGeneratedCode, setShowGeneratedCode] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const navigate = useNavigate();
   const { validateAndUsePremiumCode, purchasePremiumCode } = usePremiumCode();
 
   const steps = ['Enter Premium Code', 'Payment Details', 'Get Your Code'];
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
 
   const validatePremiumCode = async () => {
     if (!premiumCode.trim()) {
@@ -135,6 +141,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
 
       if (result.status === 'success') {
         setGeneratedCode(result.premium_code);
+        setShowGeneratedCode(true);
         setActiveStep(2);
         toast.success('Payment processed successfully!');
       } else {
@@ -163,7 +170,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
   const formatCardNumber = (value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
     const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
+    const match = matches && matches[0] || '';
     const parts = [];
     for (let i = 0, len = match.length; i < len; i += 4) {
       parts.push(match.substring(i, i + 4));
@@ -196,7 +203,6 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -344,7 +350,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
 
           {/* Main Content */}
           <Slide direction="up" in={true} timeout={1000}>
-            <Box sx={{ width: '100%', maxWidth: 600, maxHeight: isMobile ? '70vh' : '75vh', overflow: 'hidden' }}>
+            <Box sx={{ width: '100%', maxWidth: 600, maxHeight: '70vh', overflow: 'hidden' }}>
               <Fade in={true} timeout={1200}>
                 <Paper
                   elevation={24}
@@ -429,31 +435,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
 
                   {/* Step 0: Premium Code Entry */}
                   {activeStep === 0 && (
-                    <Box sx={{ 
-                      flex: 1, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      overflow: 'auto',
-                      maxHeight: isMobile ? 'calc(60vh - 120px)' : 'calc(65vh - 150px)',
-                      paddingRight: '8px',
-                      '&::-webkit-scrollbar': {
-                        width: '6px',
-                        marginRight: '8px',
-                      },
-                      '&::-webkit-scrollbar-track': {
-                        background: 'rgba(0,0,0,0.3)',
-                        borderRadius: '3px',
-                        margin: '8px 8px 8px 0px',
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        background: 'rgba(0,0,0,0.7)',
-                        borderRadius: '3px',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        '&:hover': {
-                          background: 'rgba(0,0,0,0.8)',
-                        },
-                      },
-                    }}>
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <Typography variant="h6" sx={{ mb: 2, textAlign: 'center', color: '#2C3E50' }}>
                         Enter Your Premium Code
                       </Typography>
@@ -551,7 +533,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
                         )}
                       </Button>
 
-                      <Divider sx={{ my: 2 }}>
+                      <Divider sx={{ my: 3 }}>
                         <Chip label="OR" />
                       </Divider>
 
@@ -561,7 +543,6 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
                         onClick={() => setActiveStep(1)}
                         sx={{
                           py: 2,
-                          mb: 2,
                           borderRadius: 3,
                           fontSize: '1.1rem',
                           fontWeight: 600,
@@ -578,62 +559,12 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
                         <Payment sx={{ mr: 1 }} />
                         Buy Premium Code
                       </Button>
-
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        onClick={() => {
-                          // Navigate to login page with trial option
-                          navigate('/login?trial=true');
-                        }}
-                        sx={{
-                          py: 2,
-                          borderRadius: 3,
-                          fontSize: '1.1rem',
-                          fontWeight: 600,
-                          textTransform: 'none',
-                          background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-                          boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%)',
-                            boxShadow: '0 12px 35px rgba(76, 175, 80, 0.4)',
-                            transform: 'translateY(-2px)',
-                          },
-                        }}
-                      >
-                        <Star sx={{ mr: 1 }} />
-                        Start Free Trial
-                      </Button>
                     </Box>
                   )}
 
                   {/* Step 1: Payment Form */}
                   {activeStep === 1 && (
-                    <Box sx={{ 
-                      flex: 1, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      overflow: 'auto',
-                      maxHeight: isMobile ? 'calc(60vh - 120px)' : 'calc(65vh - 150px)',
-                      paddingRight: '8px',
-                      '&::-webkit-scrollbar': {
-                        width: '6px',
-                        marginRight: '8px',
-                      },
-                      '&::-webkit-scrollbar-track': {
-                        background: 'rgba(0,0,0,0.3)',
-                        borderRadius: '3px',
-                        margin: '8px 8px 8px 0px',
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        background: 'rgba(0,0,0,0.7)',
-                        borderRadius: '3px',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        '&:hover': {
-                          background: 'rgba(0,0,0,0.8)',
-                        },
-                      },
-                    }}>
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <Typography variant="h6" sx={{ mb: 2, textAlign: 'center', color: '#2C3E50' }}>
                         Payment Details
                       </Typography>
@@ -905,31 +836,7 @@ const PremiumCodeEntry = ({ onCodeValidated, onClose }) => {
 
                   {/* Step 2: Generated Code */}
                   {activeStep === 2 && (
-                    <Box sx={{ 
-                      flex: 1, 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      textAlign: 'center',
-                      overflow: 'auto',
-                      maxHeight: isMobile ? 'calc(60vh - 120px)' : 'calc(65vh - 150px)',
-                      '&::-webkit-scrollbar': {
-                        width: '6px',
-                        marginRight: '8px',
-                      },
-                      '&::-webkit-scrollbar-track': {
-                        background: 'rgba(0,0,0,0.3)',
-                        borderRadius: '3px',
-                        margin: '8px 8px 8px 0px',
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        background: 'rgba(0,0,0,0.7)',
-                        borderRadius: '3px',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        '&:hover': {
-                          background: 'rgba(0,0,0,0.8)',
-                        },
-                      },
-                    }}>
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', textAlign: 'center' }}>
                       <Zoom in={true}>
                         <Box
                           sx={{
