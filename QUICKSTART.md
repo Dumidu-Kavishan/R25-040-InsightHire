@@ -42,7 +42,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 
 # Start the backend server
-python app.py
+python start.py
 ```
 
 The backend will be available at: **http://localhost:5000**

@@ -800,3 +800,160 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting interview records: {e}")
             return []
+
+    # ==================== PREMIUM CODE MANAGEMENT ====================
+    
+    def generate_premium_code(self):
+        """Generate a unique premium code using a formula"""
+        import random
+        import string
+        
+        # Generate a unique code with format: PREM-XXXX-YYYY-ZZZZ
+        # Where XXXX is random alphanumeric, YYYY is timestamp-based, ZZZZ is random
+        timestamp_part = str(int(datetime.now().timestamp()))[-4:]
+        random_part1 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        random_part2 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        
+        premium_code = f"PREM-{random_part1}-{timestamp_part}-{random_part2}"
+        
+        # Ensure uniqueness by checking if code already exists
+        while self.check_premium_code_exists(premium_code):
+            random_part1 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            random_part2 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            premium_code = f"PREM-{random_part1}-{timestamp_part}-{random_part2}"
+        
+        return premium_code
+    
+    def create_premium_code(self, payment_data=None):
+        """Create a new premium code and save to database"""
+        try:
+            premium_code = self.generate_premium_code()
+            
+            premium_data = {
+                'premium_code': premium_code,
+                'created_at': datetime.now().isoformat(),
+                'is_used': False,
+                'used_at': None,
+                'used_by': None,
+                'payment_data': payment_data or {},
+                'status': 'active',
+                'expires_at': None  # Premium codes don't expire by default
+            }
+            
+            # Save to premium_codes collection
+            premium_ref = self.db.collection('premium_codes').document(premium_code)
+            premium_ref.set(premium_data)
+            
+            logger.info(f"Premium code created: {premium_code}")
+            return premium_code
+            
+        except Exception as e:
+            logger.error(f"Error creating premium code: {e}")
+            return None
+    
+    def validate_premium_code(self, premium_code):
+        """Validate a premium code"""
+        try:
+            premium_ref = self.db.collection('premium_codes').document(premium_code)
+            doc = premium_ref.get()
+            
+            if not doc.exists:
+                logger.info(f"Premium code not found: {premium_code}")
+                return {'valid': False, 'message': 'Premium code not found'}
+            
+            premium_data = doc.to_dict()
+            
+            # Check if code is already used
+            if premium_data.get('is_used', False):
+                logger.info(f"Premium code already used: {premium_code}")
+                return {'valid': False, 'message': 'Premium code has already been used'}
+            
+            # Check if code is active
+            if premium_data.get('status') != 'active':
+                logger.info(f"Premium code is not active: {premium_code}")
+                return {'valid': False, 'message': 'Premium code is not active'}
+            
+            # Check expiration (if set)
+            expires_at = premium_data.get('expires_at')
+            if expires_at:
+                from datetime import datetime
+                if datetime.fromisoformat(expires_at) < datetime.now():
+                    logger.info(f"Premium code expired: {premium_code}")
+                    return {'valid': False, 'message': 'Premium code has expired'}
+            
+            logger.info(f"Premium code is valid: {premium_code}")
+            return {'valid': True, 'message': 'Premium code is valid', 'data': premium_data}
+            
+        except Exception as e:
+            logger.error(f"Error validating premium code: {e}")
+            return {'valid': False, 'message': 'Error validating premium code'}
+    
+    def use_premium_code(self, premium_code, user_id=None):
+        """Mark a premium code as used"""
+        try:
+            premium_ref = self.db.collection('premium_codes').document(premium_code)
+            
+            update_data = {
+                'is_used': True,
+                'used_at': datetime.now().isoformat(),
+                'used_by': user_id,
+                'status': 'used'
+            }
+            
+            premium_ref.update(update_data)
+            logger.info(f"Premium code marked as used: {premium_code}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error using premium code: {e}")
+            return False
+    
+    def check_premium_code_exists(self, premium_code):
+        """Check if a premium code already exists"""
+        try:
+            premium_ref = self.db.collection('premium_codes').document(premium_code)
+            doc = premium_ref.get()
+            return doc.exists
+        except Exception as e:
+            logger.error(f"Error checking premium code existence: {e}")
+            return False
+    
+    def get_premium_codes(self, limit=50, status=None):
+        """Get premium codes with optional filtering"""
+        try:
+            query = self.db.collection('premium_codes')
+            
+            if status:
+                query = query.where('status', '==', status)
+            
+            query = query.order_by('created_at', direction='DESCENDING').limit(limit)
+            docs = query.stream()
+            
+            premium_codes = []
+            for doc in docs:
+                premium_codes.append({'id': doc.id, **doc.to_dict()})
+            
+            logger.info(f"Retrieved {len(premium_codes)} premium codes")
+            return premium_codes
+            
+        except Exception as e:
+            logger.error(f"Error getting premium codes: {e}")
+            return []
+    
+    def get_user_premium_access(self, user_id):
+        """Check if user has premium access"""
+        try:
+            # Check if user has used a premium code
+            query = self.db.collection('premium_codes').where('used_by', '==', user_id)
+            docs = query.stream()
+            
+            for doc in docs:
+                premium_data = doc.to_dict()
+                if premium_data.get('is_used', False) and premium_data.get('status') == 'used':
+                    return {'has_premium': True, 'premium_code': doc.id, 'used_at': premium_data.get('used_at')}
+            
+            return {'has_premium': False}
+            
+        except Exception as e:
+            logger.error(f"Error checking user premium access: {e}")
+            return {'has_premium': False}

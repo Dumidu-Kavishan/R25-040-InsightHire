@@ -7,10 +7,12 @@ import 'react-toastify/dist/ReactToastify.css';
 // Contexts
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { PremiumCodeProvider, usePremiumCode } from './contexts/PremiumCodeContext';
 
 // Components
 import Navbar from './components/Navbar';
 import LoadingSpinner from './components/LoadingSpinner';
+import PremiumCodeEntry from './components/PremiumCodeEntry';
 
 // Pages
 import Login from './pages/Login';
@@ -22,6 +24,44 @@ import Analytics from './pages/Analytics';
 import HRAnalytics from './pages/HRAnalytics';
 import HRDashboard from './pages/HRDashboard';
 
+
+// Premium Code Gate Component
+const PremiumCodeGate = ({ children }) => {
+  const { hasPremiumAccess, isCheckingAccess } = usePremiumCode();
+  const [showPremiumEntry, setShowPremiumEntry] = React.useState(false);
+
+  React.useEffect(() => {
+    // If user doesn't have premium access and we're not checking, show premium entry
+    if (!hasPremiumAccess && !isCheckingAccess) {
+      setShowPremiumEntry(true);
+    }
+  }, [hasPremiumAccess, isCheckingAccess]);
+
+  const handleCodeValidated = (code) => {
+    setShowPremiumEntry(false);
+    // The PremiumCodeContext will handle updating the state
+  };
+
+  const handleClosePremiumEntry = () => {
+    // Don't allow closing without premium access
+    // Users must enter a valid premium code to proceed
+  };
+
+  if (isCheckingAccess) {
+    return <LoadingSpinner />;
+  }
+
+  if (!hasPremiumAccess) {
+    return (
+      <PremiumCodeEntry 
+        onCodeValidated={handleCodeValidated}
+        onClose={handleClosePremiumEntry}
+      />
+    );
+  }
+
+  return children;
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -63,18 +103,54 @@ const AppContent = () => {
   return (
     <AppLayout>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+        {/* Public Routes - Protected by Premium Code Gate */}
+        <Route path="/login" element={
+          <PremiumCodeGate>
+            <PublicRoute><Login /></PublicRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/register" element={
+          <PremiumCodeGate>
+            <PublicRoute><Register /></PublicRoute>
+          </PremiumCodeGate>
+        } />
 
-        {/* Protected Routes */}
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-        <Route path="/hr-analytics" element={<ProtectedRoute><HRAnalytics /></ProtectedRoute>} />
-        <Route path="/hr-dashboard" element={<ProtectedRoute><HRDashboard /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/interview/:sessionId" element={<ProtectedRoute><InterviewSession /></ProtectedRoute>} />
-        <Route path="/session/:sessionId" element={<ProtectedRoute><InterviewSession /></ProtectedRoute>} />
+        {/* Protected Routes - Also Protected by Premium Code Gate */}
+        <Route path="/dashboard" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><Dashboard /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/analytics" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><Analytics /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/hr-analytics" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><HRAnalytics /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/hr-dashboard" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><HRDashboard /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/settings" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><Settings /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/interview/:sessionId" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><InterviewSession /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
+        <Route path="/session/:sessionId" element={
+          <PremiumCodeGate>
+            <ProtectedRoute><InterviewSession /></ProtectedRoute>
+          </PremiumCodeGate>
+        } />
 
         {/* Redirects */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -95,12 +171,14 @@ const AppContent = () => {
 // Main App Component
 const App = () => (
   <ThemeProvider>
-    <AuthProvider>
-      <Router>
-        <CssBaseline />
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <PremiumCodeProvider>
+      <AuthProvider>
+        <Router>
+          <CssBaseline />
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </PremiumCodeProvider>
   </ThemeProvider>
 );
 

@@ -865,9 +865,7 @@ const Dashboard = () => {
       >
         {/* Header with Gradient */}
         <DialogTitle sx={(theme) => ({
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%)',
+          background: 'linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%)',
           color: 'white',
           display: 'flex',
           alignItems: 'center',

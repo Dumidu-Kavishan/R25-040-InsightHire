@@ -203,28 +203,15 @@ const Settings = () => {
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-            <Typography 
-          variant="h4" 
-              sx={{ 
-            color: '#1e293b',
-            fontWeight: 700,
-            fontSize: '2.5rem',
-            mb: 1
-          }}
-        >
-          Settings
-            </Typography>
-      </Box>
-
       <Grid container spacing={3}>
         {/* Sidebar */}
         <Grid item xs={12} md={3}>
           <Paper sx={{
             borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0',
+            boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)',
+            border: theme.palette.mode === 'dark' ? '1px solid #374151' : '1px solid #e0e0e0',
+            overflow: 'hidden',
+            backgroundColor: theme.palette.mode === 'dark' ? '#1f2937' : '#ffffff'
           }}>
             <Tabs
               orientation="vertical"
@@ -239,10 +226,26 @@ const Settings = () => {
                   px: 2,
                   py: 1.5,
                   fontSize: '0.9rem',
+                  color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666',
+                  transition: 'all 0.2s ease-in-out',
+                  borderRight: '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' ? '#374151' : '#f5f5f5',
+                    color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#333333',
+                  },
                 },
                 '& .Mui-selected': {
-                  backgroundColor: '#f1f5f9',
-                  color: '#1e293b',
+                  backgroundColor: theme.palette.mode === 'dark' ? '#1e40af' : '#e3f2fd',
+                  color: theme.palette.mode === 'dark' ? '#ffffff' : '#1976d2',
+                  fontWeight: 600,
+                  borderRight: theme.palette.mode === 'dark' ? '3px solid #3b82f6' : '3px solid #2196f3',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' ? '#1e40af' : '#e3f2fd',
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#1976d2',
+                  },
+                },
+                '& .MuiTabs-indicator': {
+                  display: 'none',
                 },
               }}
             >
@@ -270,14 +273,15 @@ const Settings = () => {
           <Paper sx={{
             p: 3,
             borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            border: '1px solid #e2e8f0',
+            boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)',
+            border: theme.palette.mode === 'dark' ? '1px solid #374151' : '1px solid #e0e0e0',
             minHeight: 500,
+            backgroundColor: theme.palette.mode === 'dark' ? '#1f2937' : '#ffffff',
           }}>
             {/* Profile Settings */}
             <TabPanel value={activeTab} index={0}>
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: '#1e293b' }}>
-                Profile Information
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a' }}>
+                👤 Profile Information
               </Typography>
               
               {profileLoading && (
@@ -299,8 +303,11 @@ const Settings = () => {
                         height: 100,
                         mx: 'auto',
                         mb: 2,
-                        bgcolor: '#3b82f6',
+                        bgcolor: theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3',
                         fontSize: '1.8rem',
+                        fontWeight: 'bold',
+                        color: '#ffffff',
+                        boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(59, 130, 246, 0.3)' : '0 4px 12px rgba(33, 150, 243, 0.3)',
                       }}
                     >
                       {displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
@@ -309,7 +316,17 @@ const Settings = () => {
                       variant="outlined"
                       size="small"
                       startIcon={<CloudUpload />}
-                      sx={{ borderRadius: 2 }}
+                      sx={{ 
+                        borderRadius: 2,
+                        borderColor: theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3',
+                        color: theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3',
+                        fontWeight: 600,
+                        '&:hover': {
+                          backgroundColor: theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3',
+                          color: '#ffffff',
+                          borderColor: theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3',
+                        },
+                      }}
                     >
                       Upload Photo
                     </Button>
@@ -322,13 +339,13 @@ const Settings = () => {
                       <Box sx={{ mb: 1 }}>
                         <Typography 
                           variant="body2" 
-                        sx={{
-                            color: '#666', 
+                          sx={{
+                            color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#333333', 
                             mb: 1, 
-                            fontWeight: 500 
+                            fontWeight: 600 
                           }}
                         >
-                          Display Name
+                          ✏️ Display Name
                         </Typography>
                         <input
                           key={inputKey}
@@ -337,7 +354,9 @@ const Settings = () => {
                           value={displayName}
                           onChange={handleDisplayNameChange}
                           onFocus={(e) => {
-                            e.target.style.borderColor = '#3b82f6';
+                            const focusColor = theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3';
+                            e.target.style.borderColor = focusColor;
+                            e.target.style.boxShadow = `0 0 0 2px ${theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(33, 150, 243, 0.2)'}`;
                             // Restore cursor to end of text
                             setTimeout(() => {
                               e.target.setSelectionRange(e.target.value.length, e.target.value.length);
@@ -351,37 +370,42 @@ const Settings = () => {
                             padding: '12px 16px',
                             fontSize: '16px',
                             borderRadius: '8px',
-                            border: `1px solid ${theme.palette.divider}`,
-                            backgroundColor: profileLoading ? theme.palette.action.disabledBackground : theme.palette.background.paper,
-                            color: theme.palette.text.primary,
+                            border: theme.palette.mode === 'dark' ? '2px solid #374151' : '2px solid #e0e0e0',
+                            backgroundColor: profileLoading 
+                              ? (theme.palette.mode === 'dark' ? '#374151' : '#f5f5f5')
+                              : (theme.palette.mode === 'dark' ? '#111827' : '#ffffff'),
+                            color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a',
                             outline: 'none',
-                            transition: 'border-color 0.2s ease',
+                            transition: 'all 0.2s ease',
                             boxSizing: 'border-box',
                             cursor: profileLoading ? 'not-allowed' : 'text',
+                            fontWeight: '500',
                           }}
                           onBlur={(e) => {
-                            e.target.style.borderColor = theme.palette.divider;
+                            e.target.style.borderColor = theme.palette.mode === 'dark' ? '#374151' : '#e0e0e0';
+                            e.target.style.boxShadow = 'none';
                           }}
                           onMouseEnter={(e) => {
                             if (!profileLoading) {
-                              e.target.style.borderColor = theme.palette.action.hover;
+                              e.target.style.borderColor = theme.palette.mode === 'dark' ? '#4b5563' : '#bdbdbd';
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (!e.target.matches(':focus')) {
-                              e.target.style.borderColor = theme.palette.divider;
+                              e.target.style.borderColor = theme.palette.mode === 'dark' ? '#374151' : '#e0e0e0';
                             }
                           }}
                         />
                         <Typography 
                           variant="caption" 
-                          sx={(theme) => ({ 
-                            color: theme.palette.text.secondary, 
+                          sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', 
                             mt: 0.5, 
-                            display: 'block' 
-                          })}
+                            display: 'block',
+                            fontSize: '0.85rem'
+                          }}
                         >
-                          {profileLoading ? "Loading profile..." : "You can edit this field"}
+                          💡 {profileLoading ? "Loading profile..." : "You can edit this field"}
                         </Typography>
                       </Box>
                     </Grid>
@@ -390,12 +414,12 @@ const Settings = () => {
                         <Typography 
                           variant="body2" 
                           sx={{ 
-                            color: '#374151', 
+                            color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#333333', 
                             mb: 1, 
-                            fontWeight: 500 
+                            fontWeight: 600 
                           }}
                         >
-                          Email
+                          📧 Email Address
                         </Typography>
                         <input
                           type="text"
@@ -406,14 +430,26 @@ const Settings = () => {
                             padding: '12px 16px',
                             fontSize: '16px',
                             borderRadius: '8px',
-                            border: `1px solid ${theme.palette.divider}`,
-                            backgroundColor: theme.palette.action.disabledBackground,
+                            border: theme.palette.mode === 'dark' ? '2px solid #374151' : '2px solid #e0e0e0',
+                            backgroundColor: theme.palette.mode === 'dark' ? '#374151' : '#f5f5f5',
                             outline: 'none',
                             boxSizing: 'border-box',
                             cursor: 'not-allowed',
-                            color: theme.palette.text.disabled,
+                            color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666',
+                            fontWeight: '500',
                           }}
                         />
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            color: theme.palette.mode === 'dark' ? '#6b7280' : '#999999', 
+                            mt: 0.5, 
+                            display: 'block',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          🔒 This field cannot be edited
+                        </Typography>
                       </Box>
                     </Grid>
                   </Grid>
@@ -423,18 +459,26 @@ const Settings = () => {
 
             {/* Notification Settings */}
             <TabPanel value={activeTab} index={1}>
-              <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>
-                Notification Preferences
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a' }}>
+                🔔 Notification Preferences
               </Typography>
               
               <List>
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <Notifications color="primary" />
+                    <Notifications sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Email Notifications"
-                    secondary="Receive updates via email"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Email Notifications
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        Receive updates via email
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Switch
@@ -444,13 +488,21 @@ const Settings = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
                 
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <VolumeUp color="primary" />
+                    <VolumeUp sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Push Notifications"
-                    secondary="Browser notifications for real-time updates"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Push Notifications
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        Browser notifications for real-time updates
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Switch
@@ -460,13 +512,21 @@ const Settings = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
                 
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <Schedule color="primary" />
+                    <Schedule sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Session Reminders"
-                    secondary="Get notified about upcoming interviews"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Session Reminders
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        Get notified about upcoming interviews
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Switch
@@ -476,13 +536,21 @@ const Settings = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
                 
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <Analytics color="primary" />
+                    <Analytics sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Weekly Reports"
-                    secondary="Receive weekly analytics summaries"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Weekly Reports
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        Receive weekly analytics summaries
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Switch
@@ -496,18 +564,26 @@ const Settings = () => {
 
             {/* Privacy & Security */}
             <TabPanel value={activeTab} index={2}>
-              <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>
-                Privacy & Security
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a' }}>
+                🔒 Privacy & Security
               </Typography>
               
               <List>
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <Visibility color="primary" />
+                    <Visibility sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Profile Visibility"
-                    secondary="Make your profile visible to other users"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Profile Visibility
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        Make your profile visible to other users
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Switch
@@ -517,13 +593,21 @@ const Settings = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
                 
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <InsertChart color="primary" />
+                    <InsertChart sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Share Analytics"
-                    secondary="Allow anonymous analytics data sharing"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Share Analytics
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        Allow anonymous analytics data sharing
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Switch
@@ -533,19 +617,33 @@ const Settings = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
                 
-                <ListItem>
+                <ListItem sx={{ py: 2 }}>
                   <ListItemIcon>
-                    <Storage color="primary" />
+                    <Storage sx={{ color: '#2196f3' }} />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Data Retention"
-                    secondary="How long to keep your data"
+                    primary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#f3f4f6' : '#1a1a1a', fontWeight: 600, fontSize: '1rem' }}>
+                        Data Retention
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography sx={{ color: theme.palette.mode === 'dark' ? '#9ca3af' : '#666666', fontSize: '0.9rem' }}>
+                        How long to keep your data
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <Chip
                       label="12 months"
-                      color="primary"
-                      variant="outlined"
+                      sx={{
+                        backgroundColor: '#3b82f6',
+                        color: '#ffffff',
+                        fontWeight: 600,
+                        '&:hover': {
+                          backgroundColor: '#2563eb',
+                        }
+                      }}
                       clickable
                     />
                   </ListItemSecondaryAction>
@@ -571,12 +669,15 @@ const Settings = () => {
                   borderRadius: 2,
                   px: 3,
                   py: 1.5,
-                  backgroundColor: '#3b82f6',
+                  backgroundColor: theme.palette.mode === 'dark' ? '#3b82f6' : '#2196f3',
+                  color: '#ffffff',
+                  fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: '#2563eb',
+                    backgroundColor: theme.palette.mode === 'dark' ? '#2563eb' : '#1976d2',
                   },
                   '&:disabled': {
-                    backgroundColor: '#9ca3af',
+                    backgroundColor: theme.palette.mode === 'dark' ? '#6b7280' : '#bdbdbd',
+                    color: '#ffffff',
                   },
                 }}
               >

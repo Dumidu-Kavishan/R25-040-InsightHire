@@ -3118,6 +3118,209 @@ def calculate_final_scores(session_id):
             'message': str(e)
         }), 500
 
+# ==================== PREMIUM CODE API ENDPOINTS ====================
+
+@app.route('/api/premium/validate', methods=['POST'])
+def validate_premium_code():
+    """Validate a premium code"""
+    try:
+        data = request.get_json()
+        premium_code = data.get('premium_code')
+        
+        if not premium_code:
+            return jsonify({
+                'status': 'error',
+                'message': 'Premium code is required'
+            }), 400
+        
+        db_manager = DatabaseManager()
+        validation_result = db_manager.validate_premium_code(premium_code)
+        
+        if validation_result['valid']:
+            return jsonify({
+                'status': 'success',
+                'message': validation_result['message'],
+                'valid': True
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': validation_result['message'],
+                'valid': False
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error validating premium code: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Error validating premium code'
+        }), 500
+
+@app.route('/api/premium/use', methods=['POST'])
+def use_premium_code():
+    """Use a premium code (mark as used)"""
+    try:
+        data = request.get_json()
+        premium_code = data.get('premium_code')
+        user_id = data.get('user_id')
+        
+        if not premium_code:
+            return jsonify({
+                'status': 'error',
+                'message': 'Premium code is required'
+            }), 400
+        
+        db_manager = DatabaseManager()
+        
+        # First validate the code
+        validation_result = db_manager.validate_premium_code(premium_code)
+        if not validation_result['valid']:
+            return jsonify({
+                'status': 'error',
+                'message': validation_result['message']
+            }), 400
+        
+        # Mark as used
+        success = db_manager.use_premium_code(premium_code, user_id)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': 'Premium code activated successfully'
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to activate premium code'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error using premium code: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Error using premium code'
+        }), 500
+
+@app.route('/api/premium/generate', methods=['POST'])
+def generate_premium_code():
+    """Generate a new premium code (admin function)"""
+    try:
+        data = request.get_json()
+        payment_data = data.get('payment_data', {})
+        
+        db_manager = DatabaseManager()
+        premium_code = db_manager.create_premium_code(payment_data)
+        
+        if premium_code:
+            return jsonify({
+                'status': 'success',
+                'message': 'Premium code generated successfully',
+                'premium_code': premium_code
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to generate premium code'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error generating premium code: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Error generating premium code'
+        }), 500
+
+@app.route('/api/premium/purchase', methods=['POST'])
+def purchase_premium_code():
+    """Purchase a premium code with payment details"""
+    try:
+        data = request.get_json()
+        
+        # Extract payment details
+        payment_data = {
+            'card_number': data.get('card_number'),
+            'card_holder': data.get('card_holder'),
+            'expiry_date': data.get('expiry_date'),
+            'cvv': data.get('cvv'),
+            'amount': data.get('amount', 99.99),  # Default price
+            'currency': data.get('currency', 'USD'),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Basic payment validation (in production, use a proper payment processor)
+        required_fields = ['card_number', 'card_holder', 'expiry_date', 'cvv']
+        for field in required_fields:
+            if not payment_data.get(field):
+                return jsonify({
+                    'status': 'error',
+                    'message': f'{field.replace("_", " ").title()} is required'
+                }), 400
+        
+        # Simple card number validation (basic Luhn algorithm)
+        card_number = payment_data['card_number'].replace(' ', '').replace('-', '')
+        if not card_number.isdigit() or len(card_number) < 13 or len(card_number) > 19:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid card number'
+            }), 400
+        
+        # Generate premium code
+        db_manager = DatabaseManager()
+        premium_code = db_manager.create_premium_code(payment_data)
+        
+        if premium_code:
+            return jsonify({
+                'status': 'success',
+                'message': 'Payment processed successfully',
+                'premium_code': premium_code,
+                'payment_data': {
+                    'amount': payment_data['amount'],
+                    'currency': payment_data['currency'],
+                    'timestamp': payment_data['timestamp']
+                }
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Payment processed but failed to generate premium code'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error processing premium code purchase: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Error processing payment'
+        }), 500
+
+@app.route('/api/premium/check-access', methods=['GET'])
+def check_premium_access():
+    """Check if user has premium access"""
+    try:
+        user_id = get_user_id_from_request()
+        
+        if not user_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'User ID is required'
+            }), 400
+        
+        db_manager = DatabaseManager()
+        access_info = db_manager.get_user_premium_access(user_id)
+        
+        return jsonify({
+            'status': 'success',
+            'has_premium': access_info['has_premium'],
+            'premium_code': access_info.get('premium_code'),
+            'used_at': access_info.get('used_at')
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking premium access: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Error checking premium access'
+        }), 500
+
 # REMOVED: Background periodic updates - analysis already emits via Socket.IO
 # This was causing duplicate requests and overheating
 
