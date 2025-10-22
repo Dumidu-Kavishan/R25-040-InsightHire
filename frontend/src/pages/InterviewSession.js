@@ -658,7 +658,8 @@ const InterviewSession = () => {
           font: {
             size: 12,
             weight: 500
-          }
+          },
+          color: isDarkMode ? '#F0F6FC' : '#2D3748'
         }
       },
       title: {
@@ -668,9 +669,14 @@ const InterviewSession = () => {
           size: 16,
           weight: 600
         },
-        color: '#2D3748'
+        color: isDarkMode ? '#F0F6FC' : '#2D3748'
       },
       tooltip: {
+        backgroundColor: isDarkMode ? '#21262D' : '#FFFFFF',
+        titleColor: isDarkMode ? '#F0F6FC' : '#2D3748',
+        bodyColor: isDarkMode ? '#8B949E' : '#64748B',
+        borderColor: isDarkMode ? '#30363D' : '#E2E8F0',
+        borderWidth: 1,
         callbacks: {
           label: function(context) {
             const value = context.parsed.y;
@@ -686,7 +692,7 @@ const InterviewSession = () => {
         max: 1,
         min: 0,
         grid: {
-          color: 'rgba(226, 232, 240, 0.5)',
+          color: isDarkMode ? 'rgba(139, 148, 158, 0.2)' : 'rgba(226, 232, 240, 0.5)',
           lineWidth: 1
         },
         ticks: {
@@ -695,7 +701,7 @@ const InterviewSession = () => {
             size: 12,
             weight: 500
           },
-          color: '#64748B',
+          color: isDarkMode ? '#8B949E' : '#64748B',
           callback: function(value) {
             if (value === 1) return 'Stress';
             if (value === 0) return 'Non Stress';
@@ -705,14 +711,14 @@ const InterviewSession = () => {
       },
       x: {
         grid: {
-          color: 'rgba(226, 232, 240, 0.3)',
+          color: isDarkMode ? 'rgba(139, 148, 158, 0.1)' : 'rgba(226, 232, 240, 0.3)',
           lineWidth: 1
         },
         ticks: {
           font: {
             size: 11
           },
-          color: '#64748B',
+          color: isDarkMode ? '#8B949E' : '#64748B',
           maxTicksLimit: 8
         }
       }
@@ -745,7 +751,8 @@ const InterviewSession = () => {
           font: {
             size: 12,
             weight: 500
-          }
+          },
+          color: isDarkMode ? '#F0F6FC' : '#2D3748'
         }
       },
       title: {
@@ -755,9 +762,14 @@ const InterviewSession = () => {
           size: 16,
           weight: 600
         },
-        color: '#2D3748'
+        color: isDarkMode ? '#F0F6FC' : '#2D3748'
       },
       tooltip: {
+        backgroundColor: isDarkMode ? '#21262D' : '#FFFFFF',
+        titleColor: isDarkMode ? '#F0F6FC' : '#2D3748',
+        bodyColor: isDarkMode ? '#8B949E' : '#64748B',
+        borderColor: isDarkMode ? '#30363D' : '#E2E8F0',
+        borderWidth: 1,
         callbacks: {
           label: function(context) {
             const value = context.parsed.y;
@@ -773,7 +785,7 @@ const InterviewSession = () => {
         max: 1,
         min: 0,
         grid: {
-          color: 'rgba(226, 232, 240, 0.5)',
+          color: isDarkMode ? 'rgba(139, 148, 158, 0.2)' : 'rgba(226, 232, 240, 0.5)',
           lineWidth: 1
         },
         ticks: {
@@ -782,7 +794,7 @@ const InterviewSession = () => {
             size: 12,
             weight: 500
           },
-          color: '#64748B',
+          color: isDarkMode ? '#8B949E' : '#64748B',
           callback: function(value) {
             if (value === 1) return 'Confident';
             if (value === 0) return 'Non Confident';
@@ -792,14 +804,14 @@ const InterviewSession = () => {
       },
       x: {
         grid: {
-          color: 'rgba(226, 232, 240, 0.3)',
+          color: isDarkMode ? 'rgba(139, 148, 158, 0.1)' : 'rgba(226, 232, 240, 0.3)',
           lineWidth: 1
         },
         ticks: {
           font: {
             size: 11
           },
-          color: '#64748B',
+          color: isDarkMode ? '#8B949E' : '#64748B',
           maxTicksLimit: 8
         }
       }
@@ -820,13 +832,24 @@ const InterviewSession = () => {
   };
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
+    <Container 
+      maxWidth="xl" 
+      sx={{ 
+        mt: 2, 
+        mb: 0,
+        px: 0,
+        backgroundColor: isDarkMode ? '#0D1117' : '#FAFAFA',
+        minHeight: '100vh'
+      }}
+    >
       {/* Clean Header */}
       <Box sx={{ 
         mb: 4, 
         pb: 3, 
-        borderBottom: '1px solid #E8F4FD',
-        background: 'linear-gradient(135deg, #F8FCFF 0%, #E3F2FD 100%)',
+        borderBottom: isDarkMode ? '1px solid #30363D' : '1px solid #E8F4FD',
+        background: isDarkMode 
+          ? 'linear-gradient(135deg, #161B22 0%, #21262D 100%)'
+          : 'linear-gradient(135deg, #F8FCFF 0%, #E3F2FD 100%)',
         borderRadius: '16px',
         p: 3
       }}>
@@ -834,7 +857,7 @@ const InterviewSession = () => {
           variant="h4" 
           sx={{ 
             mb: 1, 
-            color: '#1A365D', 
+            color: isDarkMode ? '#F0F6FC' : '#1A365D', 
             fontWeight: 600,
             letterSpacing: '-0.02em'
           }}
@@ -844,7 +867,7 @@ const InterviewSession = () => {
         <Typography 
           variant="body1" 
           sx={{ 
-            color: '#718096',
+            color: isDarkMode ? '#8B949E' : '#718096',
             fontSize: '1.1rem'
           }}
         >
@@ -852,9 +875,13 @@ const InterviewSession = () => {
         </Typography>
       </Box>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={0} sx={{ 
+        backgroundColor: isDarkMode ? '#0D1117' : '#FAFAFA',
+        m: 0,
+        width: '100%'
+      }}>
         {/* Main Recording Section - Expanded */}
-        <Grid item xs={12} lg={9}>
+        <Grid item xs={12} lg={9} sx={{ pr: 2 }}>
           {/* Screen Recording Panel */}
           <Paper 
             elevation={0}
@@ -862,7 +889,7 @@ const InterviewSession = () => {
               p: 4, 
               borderRadius: '20px',
               border: isDarkMode 
-                ? '1px solid #333333'
+                ? '1px solid #30363D !important'
                 : '1px solid #E2E8F0',
               backgroundColor: isDarkMode 
                 ? '#1F1F1F'
@@ -882,7 +909,7 @@ const InterviewSession = () => {
                 <Typography 
                   variant="h6" 
                   sx={{ 
-                    color: '#2D3748', 
+                    color: isDarkMode ? '#F0F6FC' : '#2D3748', 
                     fontWeight: 600,
                     fontSize: '1.3rem',
                     mb: 0.5
@@ -893,7 +920,7 @@ const InterviewSession = () => {
                 <Typography 
                   variant="body2" 
                   sx={{ 
-                    color: '#718096'
+                    color: isDarkMode ? '#8B949E' : '#718096'
                   }}
                 >
                   Real-time behavioral and vocal pattern analysis
@@ -956,7 +983,7 @@ const InterviewSession = () => {
               gap: 2, 
               justifyContent: 'center',
               pt: 3,
-              borderTop: '1px solid #F1F5F9'
+              borderTop: isDarkMode ? '1px solid #30363D' : '1px solid #F1F5F9'
             }}>
               {!isInterviewActive ? (
                 <Button
@@ -1011,8 +1038,8 @@ const InterviewSession = () => {
                 startIcon={<Analytics />}
                 onClick={() => navigate(`/interview/${sessionId}/results`)}
                 sx={{
-                  color: '#64748B',
-                  borderColor: '#E2E8F0',
+                  color: isDarkMode ? '#8B949E' : '#64748B',
+                  borderColor: isDarkMode ? '#30363D' : '#E2E8F0',
                   px: 3,
                   py: 1.5,
                   borderRadius: '12px',
@@ -1020,8 +1047,8 @@ const InterviewSession = () => {
                   fontWeight: 500,
                   textTransform: 'none',
                   '&:hover': {
-                    borderColor: '#CBD5E1',
-                    backgroundColor: 'rgba(148, 163, 184, 0.05)',
+                    borderColor: isDarkMode ? '#484F58' : '#CBD5E1',
+                    backgroundColor: isDarkMode ? 'rgba(139, 148, 158, 0.1)' : 'rgba(148, 163, 184, 0.05)',
                   }
                 }}
               >
@@ -1037,7 +1064,7 @@ const InterviewSession = () => {
               p: 4, 
               borderRadius: '20px',
               border: isDarkMode 
-                ? '1px solid #333333'
+                ? '1px solid #30363D !important'
                 : '1px solid #E2E8F0',
               backgroundColor: isDarkMode 
                 ? '#1F1F1F'
@@ -1052,7 +1079,7 @@ const InterviewSession = () => {
               <Typography 
                 variant="h5" 
                 sx={{ 
-                  color: '#1A365D', 
+                  color: isDarkMode ? '#F0F6FC' : '#1A365D', 
                   fontWeight: 700,
                   fontSize: '1.5rem',
                   mb: 1,
@@ -1064,7 +1091,7 @@ const InterviewSession = () => {
               <Typography 
                 variant="body1" 
                 sx={{ 
-                  color: '#718096',
+                  color: isDarkMode ? '#8B949E' : '#718096',
                   fontSize: '1.1rem'
                 }}
               >
@@ -1073,59 +1100,59 @@ const InterviewSession = () => {
             </Box>
             
             {/* Enhanced Two Charts Layout */}
-            <Grid container spacing={4}>
+            <Grid container spacing={2}>
               {/* Stress Level Chart */}
               <Grid item xs={12} lg={6}>
-                <Box sx={(theme) => ({ 
+                <Box sx={{ 
                   height: 400,
                   p: 3,
-                  border: theme.palette.mode === 'dark' 
-                    ? '2px solid #333333' 
+                  border: isDarkMode 
+                    ? '2px solid #30363D !important' 
                     : '2px solid #FED7D7',
                   borderRadius: '16px',
-                  background: theme.palette.mode === 'dark'
+                  background: isDarkMode
                     ? 'linear-gradient(135deg, #1F1F1F 0%, #1F1F1F 100%)'
                     : 'linear-gradient(135deg, #FEF7F7 0%, #FDF2F8 100%)',
-                  backgroundColor: theme.palette.background.paper,
-                  boxShadow: theme.palette.mode === 'dark'
+                  backgroundColor: isDarkMode ? '#161B22' : '#FFFFFF',
+                  boxShadow: isDarkMode
                     ? '0 8px 25px rgba(0, 0, 0, 0.3)'
                     : '0 8px 25px rgba(239, 68, 68, 0.1)',
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: theme.palette.mode === 'dark'
+                    boxShadow: isDarkMode
                       ? '0 12px 35px rgba(0, 0, 0, 0.4)'
                       : '0 12px 35px rgba(239, 68, 68, 0.15)'
                   }
-                })}>
+                }}>
                   <Line data={stressChartData} options={stressChartOptions} />
                 </Box>
               </Grid>
               
               {/* Confidence Level Chart */}
               <Grid item xs={12} lg={6}>
-                <Box sx={(theme) => ({ 
+                <Box sx={{ 
                   height: 400,
                   p: 3,
-                  border: theme.palette.mode === 'dark' 
-                    ? '2px solid #333333' 
+                  border: isDarkMode 
+                    ? '2px solid #30363D !important' 
                     : '2px solid #BFDBFE',
                   borderRadius: '16px',
-                  background: theme.palette.mode === 'dark'
+                  background: isDarkMode
                     ? 'linear-gradient(135deg, #1F1F1F 0%, #1F1F1F 100%)'
                     : 'linear-gradient(135deg, #F0F9FF 0%, #EBF8FF 100%)',
-                  backgroundColor: theme.palette.background.paper,
-                  boxShadow: theme.palette.mode === 'dark'
+                  backgroundColor: isDarkMode ? '#161B22' : '#FFFFFF',
+                  boxShadow: isDarkMode
                     ? '0 8px 25px rgba(0, 0, 0, 0.3)'
                     : '0 8px 25px rgba(59, 130, 246, 0.1)',
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: theme.palette.mode === 'dark'
+                    boxShadow: isDarkMode
                       ? '0 12px 35px rgba(0, 0, 0, 0.4)'
                       : '0 12px 35px rgba(59, 130, 246, 0.15)'
                   }
-                })}>
+                }}>
                   <Line data={confidenceChartData} options={confidenceChartOptions} />
                 </Box>
               </Grid>
@@ -1134,14 +1161,14 @@ const InterviewSession = () => {
         </Grid>
 
         {/* Clean Analysis Results Sidebar - Compressed */}
-        <Grid item xs={12} lg={3}>
+        <Grid item xs={12} lg={3} sx={{ pl: 2 }}>
           <Paper 
             elevation={0}
             sx={{ 
               p: 3, 
               borderRadius: '20px',
               border: isDarkMode 
-                ? '1px solid #333333'
+                ? '1px solid #30363D !important'
                 : '1px solid #E2E8F0',
               backgroundColor: isDarkMode 
                 ? '#1F1F1F'
@@ -1200,7 +1227,7 @@ const InterviewSession = () => {
                 p: 2, 
                 borderRadius: '12px',
                 backgroundColor: isDarkMode ? '#1F1F1F' : '#F7FAFC',
-                border: isDarkMode ? '1px solid #333333' : '1px solid #E2E8F0'
+                border: isDarkMode ? '1px solid #30363D !important' : '1px solid #E2E8F0'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2" sx={{ color: isDarkMode ? '#E2E8F0' : '#4A5568', fontWeight: 500 }}>
@@ -1234,7 +1261,7 @@ const InterviewSession = () => {
                 p: 3, 
                 borderRadius: '16px',
                 backgroundColor: isDarkMode ? '#1F1F1F' : '#FEF7F7',
-                border: isDarkMode ? '1px solid #333333' : '1px solid #FED7D7'
+                border: isDarkMode ? '1px solid #30363D !important' : '1px solid #FED7D7'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box sx={{
@@ -1291,7 +1318,7 @@ const InterviewSession = () => {
                 p: 3, 
                 borderRadius: '16px',
                 backgroundColor: isDarkMode ? '#1F1F1F' : '#F0F9FF',
-                border: isDarkMode ? '1px solid #333333' : '1px solid #BFDBFE'
+                border: isDarkMode ? '1px solid #30363D !important' : '1px solid #BFDBFE'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box sx={{
@@ -1348,7 +1375,7 @@ const InterviewSession = () => {
                 p: 3, 
                 borderRadius: '16px',
                 backgroundColor: isDarkMode ? '#1F1F1F' : '#F0FDF4',
-                border: isDarkMode ? '1px solid #333333' : '1px solid #BBF7D0'
+                border: isDarkMode ? '1px solid #30363D !important' : '1px solid #BBF7D0'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box sx={{
@@ -1405,7 +1432,7 @@ const InterviewSession = () => {
                 p: 3, 
                 borderRadius: '16px',
                 backgroundColor: isDarkMode ? '#1F1F1F' : '#FAF5FF',
-                border: isDarkMode ? '1px solid #333333' : '1px solid #E9D5FF'
+                border: isDarkMode ? '1px solid #30363D !important' : '1px solid #E9D5FF'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Box sx={{
@@ -1472,16 +1499,16 @@ const InterviewSession = () => {
           textAlign: 'center', 
           fontSize: '1.5rem', 
           fontWeight: 600,
-          color: '#1e293b',
+          color: isDarkMode ? '#F0F6FC' : '#1e293b',
           pb: 1
         }}>
           End Interview Session
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', py: 2 }}>
-          <Typography variant="body1" sx={{ mb: 2, color: '#64748b' }}>
+          <Typography variant="body1" sx={{ mb: 2, color: isDarkMode ? '#8B949E' : '#64748b' }}>
             Are you sure you want to end this interview session?
           </Typography>
-          <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+          <Typography variant="body2" sx={{ color: isDarkMode ? '#6E7681' : '#94a3b8' }}>
             This action cannot be undone. The interview analysis will be completed and you'll be redirected to the dashboard.
           </Typography>
         </DialogContent>
@@ -1495,11 +1522,11 @@ const InterviewSession = () => {
               py: 1,
               borderRadius: 2,
               textTransform: 'none',
-              borderColor: '#d1d5db',
-              color: '#6b7280',
+              borderColor: isDarkMode ? '#30363D' : '#d1d5db',
+              color: isDarkMode ? '#8B949E' : '#6b7280',
               '&:hover': {
-                borderColor: '#9ca3af',
-                backgroundColor: '#f9fafb'
+                borderColor: isDarkMode ? '#484F58' : '#9ca3af',
+                backgroundColor: isDarkMode ? 'rgba(139, 148, 158, 0.1)' : '#f9fafb'
               }
             }}
           >

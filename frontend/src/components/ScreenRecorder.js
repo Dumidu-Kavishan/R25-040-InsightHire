@@ -21,6 +21,7 @@ import {
   Refresh
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Add CSS animations
 const styles = `
@@ -74,6 +75,7 @@ const ScreenRecorder = forwardRef(({
   captureInterval = 10000, // Capture frame every 10 seconds to match analysis interval
   hideStartButton = false 
 }, ref) => {
+  const { isDarkMode } = useTheme();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -634,8 +636,8 @@ const ScreenRecorder = forwardRef(({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      bgcolor: 'rgba(0, 0, 0, 0.8)',
-                      color: 'white',
+                      bgcolor: isDarkMode ? 'rgba(13, 17, 23, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+                      color: isDarkMode ? '#F0F6FC' : 'white',
                       zIndex: 5
                     }}
                   >
@@ -662,8 +664,8 @@ const ScreenRecorder = forwardRef(({
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      bgcolor: 'rgba(0, 0, 0, 0.9)',
-                      color: 'white',
+                      bgcolor: isDarkMode ? 'rgba(13, 17, 23, 0.95)' : 'rgba(0, 0, 0, 0.9)',
+                      color: isDarkMode ? '#F0F6FC' : 'white',
                       zIndex: 5
                     }}
                   >
@@ -697,14 +699,14 @@ const ScreenRecorder = forwardRef(({
                     position: 'absolute',
                     top: 12,
                     left: 12,
-                    bgcolor: 'rgba(255, 255, 255, 0.95)',
-                    color: '#666',
+                    bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    color: isDarkMode ? '#F0F6FC' : '#666',
                     px: 1.5,
                     py: 0.5,
                     borderRadius: '12px',
                     fontSize: '0.75rem',
                     fontWeight: 500,
-                    border: '1px solid rgba(0,0,0,0.1)',
+                    border: isDarkMode ? '1px solid rgba(48, 54, 61, 0.3)' : '1px solid rgba(0,0,0,0.1)',
                     backdropFilter: 'blur(8px)',
                     zIndex: 10
                   }}
@@ -713,27 +715,26 @@ const ScreenRecorder = forwardRef(({
                 </Box>
 
                 {/* Fullscreen Toggle */}
-                                {/* Fullscreen Toggle */}
                 <Box
                   sx={{
                     position: 'absolute',
                     top: 12,
                     right: 100,
-                    bgcolor: 'rgba(255, 255, 255, 0.95)',
-                    color: '#666',
+                    bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    color: isDarkMode ? '#F0F6FC' : '#666',
                     width: 32,
                     height: 32,
                     borderRadius: '16px',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    border: '1px solid rgba(0,0,0,0.1)',
+                    border: isDarkMode ? '1px solid rgba(48, 54, 61, 0.3)' : '1px solid rgba(0,0,0,0.1)',
                     backdropFilter: 'blur(8px)',
                     zIndex: 10,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: 'rgba(245, 245, 245, 0.95)',
+                      bgcolor: isDarkMode ? 'rgba(33, 38, 45, 0.95)' : 'rgba(245, 245, 245, 0.95)',
                       transform: 'scale(1.05)'
                     }
                   }}
@@ -748,7 +749,7 @@ const ScreenRecorder = forwardRef(({
                     position: 'absolute',
                     top: 12,
                     right: 12,
-                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                     color: '#d32f2f',
                     px: 1.5,
                     py: 0.5,
@@ -789,14 +790,14 @@ const ScreenRecorder = forwardRef(({
                   {streamInfo.hasVideo && (
                     <Box 
                       sx={{ 
-                        bgcolor: 'rgba(255, 255, 255, 0.95)', 
-                        color: '#666',
+                        bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
+                        color: isDarkMode ? '#F0F6FC' : '#666',
                         px: 1,
                         py: 0.25,
                         borderRadius: '8px',
                         fontSize: '0.7rem',
                         fontWeight: 500,
-                        border: '1px solid rgba(0,0,0,0.1)',
+                        border: isDarkMode ? '1px solid rgba(48, 54, 61, 0.3)' : '1px solid rgba(0,0,0,0.1)',
                         backdropFilter: 'blur(8px)',
                         display: 'flex',
                         alignItems: 'center',
@@ -810,14 +811,14 @@ const ScreenRecorder = forwardRef(({
                   {streamInfo.hasAudio && (
                     <Box 
                       sx={{ 
-                        bgcolor: 'rgba(255, 255, 255, 0.95)', 
-                        color: '#666',
+                        bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
+                        color: isDarkMode ? '#F0F6FC' : '#666',
                         px: 1,
                         py: 0.25,
                         borderRadius: '8px',
                         fontSize: '0.7rem',
                         fontWeight: 500,
-                        border: '1px solid rgba(0,0,0,0.1)',
+                        border: isDarkMode ? '1px solid rgba(48, 54, 61, 0.3)' : '1px solid rgba(0,0,0,0.1)',
                         backdropFilter: 'blur(8px)',
                         display: 'flex',
                         alignItems: 'center',
@@ -831,14 +832,14 @@ const ScreenRecorder = forwardRef(({
                   {!streamInfo.hasAudio && (
                     <Box 
                       sx={{ 
-                        bgcolor: 'rgba(255, 255, 255, 0.95)', 
-                        color: '#999',
+                        bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
+                        color: isDarkMode ? '#8B949E' : '#999',
                         px: 1,
                         py: 0.25,
                         borderRadius: '8px',
                         fontSize: '0.7rem',
                         fontWeight: 500,
-                        border: '1px solid rgba(0,0,0,0.1)',
+                        border: isDarkMode ? '1px solid rgba(48, 54, 61, 0.3)' : '1px solid rgba(0,0,0,0.1)',
                         backdropFilter: 'blur(8px)',
                         display: 'flex',
                         alignItems: 'center',
@@ -857,14 +858,14 @@ const ScreenRecorder = forwardRef(({
                     position: 'absolute',
                     bottom: 12,
                     right: 12,
-                    bgcolor: 'rgba(255, 255, 255, 0.95)',
-                    color: '#666',
+                    bgcolor: isDarkMode ? 'rgba(22, 27, 34, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    color: isDarkMode ? '#F0F6FC' : '#666',
                     px: 1.5,
                     py: 0.5,
                     borderRadius: '12px',
                     fontSize: '0.75rem',
                     fontWeight: 500,
-                    border: '1px solid rgba(0,0,0,0.1)',
+                    border: isDarkMode ? '1px solid rgba(48, 54, 61, 0.3)' : '1px solid rgba(0,0,0,0.1)',
                     backdropFilter: 'blur(8px)',
                     zIndex: 10,
                     display: 'flex',
@@ -921,8 +922,8 @@ const ScreenRecorder = forwardRef(({
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      bgcolor: 'rgba(0, 0, 0, 0.7)',
-                      color: 'white',
+                      bgcolor: isDarkMode ? 'rgba(13, 17, 23, 0.9)' : 'rgba(0, 0, 0, 0.7)',
+                      color: isDarkMode ? '#F0F6FC' : 'white',
                       p: 3,
                       borderRadius: 2,
                       textAlign: 'center',
@@ -961,16 +962,16 @@ const ScreenRecorder = forwardRef(({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor: '#F5F5F5',
+                bgcolor: isDarkMode ? '#161B22' : '#F5F5F5',
                 borderRadius: 2,
-                border: '2px dashed #BDBDBD'
+                border: isDarkMode ? '2px dashed #30363D' : '2px dashed #BDBDBD'
               }}
             >
-              <Monitor sx={{ fontSize: 80, color: '#BDBDBD', mb: 2 }} />
-              <Typography variant="h6" color="textSecondary" sx={{ mb: 1 }}>
+              <Monitor sx={{ fontSize: 80, color: isDarkMode ? '#30363D' : '#BDBDBD', mb: 2 }} />
+              <Typography variant="h6" sx={{ mb: 1, color: isDarkMode ? '#F0F6FC' : 'textSecondary' }}>
                 Screen Recording Ready
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
+              <Typography variant="body2" sx={{ textAlign: 'center', maxWidth: 400, color: isDarkMode ? '#8B949E' : 'textSecondary' }}>
                 Click the button below to start capturing the interview screen for AI analysis
               </Typography>
             </Box>
@@ -1104,11 +1105,21 @@ const ScreenRecorder = forwardRef(({
 
         {/* Recording Status */}
         {isRecording && !isFullscreen && (
-          <Box sx={{ mt: 2, p: 2, bgcolor: '#E8F5E8', borderRadius: 1, border: '1px solid #4CAF50' }}>
-            <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#2E7D32', mb: 1 }}>
+          <Box sx={{ 
+            mt: 2, 
+            p: 2, 
+            bgcolor: isDarkMode ? 'rgba(76, 175, 80, 0.1)' : '#E8F5E8', 
+            borderRadius: 1, 
+            border: isDarkMode ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid #4CAF50' 
+          }}>
+            <Typography variant="body1" sx={{ 
+              fontWeight: 'bold', 
+              color: isDarkMode ? '#81C784' : '#2E7D32', 
+              mb: 1 
+            }}>
               ✅ Screen Recording Active - Live Preview Above
             </Typography>
-            <Typography variant="body2" color="textSecondary">
+            <Typography variant="body2" sx={{ color: isDarkMode ? '#8B949E' : 'textSecondary' }}>
               The captured screen is displayed in the video player above. AI analysis is running on both video frames and audio.
               {streamInfo.resolution && ` Recording at ${streamInfo.resolution}.`}
               {!streamInfo.hasAudio && ' Audio not available from this source.'}
