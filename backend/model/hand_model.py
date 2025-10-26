@@ -162,15 +162,16 @@ class DynamicGesturesDetector:
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         
-        # Normalize for HaGRID model
+        # Normalize for HaGRID model - ensure float32 throughout
         normalized = rgb_frame.astype(np.float32)
-        normalized = (normalized - [127, 127, 127]) / [128, 128, 128]
+        normalized = (normalized - 127.0) / 128.0  # Use float32 constants
         
         # Add batch dimension and transpose to NCHW
         input_data = np.transpose(normalized, (2, 0, 1))  # HWC to CHW
         input_data = np.expand_dims(input_data, axis=0)  # Add batch dimension
         
-        return input_data
+        # Ensure final output is float32
+        return input_data.astype(np.float32)
 
     def _extract_hand_crop(self, frame, x, y, w, h):
         """Extract hand crop from frame for gesture classification"""
@@ -263,7 +264,7 @@ class DynamicGesturesDetector:
             detection_input = self._preprocess_frame_for_detection(frame)
             
             # Run hand detection
-            detection_outputs = self.hand_detector.run(None, {"images": detection_input})
+            detection_outputs = self.hand_detector.run(None, {"input": detection_input})
             
             hands_count = 0
             detected_gestures = []
@@ -271,33 +272,37 @@ class DynamicGesturesDetector:
             
             # Process detection results
             if len(detection_outputs) > 0 and detection_outputs[0] is not None:
-                predictions = detection_outputs[0][0]  # Shape: [N, 6] where N is number of detections
+                boxes = detection_outputs[0]  # Shape: [N, 4] where N is number of detections
+                scores = detection_outputs[2] if len(detection_outputs) > 2 else []  # Confidence scores
                 
-                # Filter by confidence threshold
-                confidence_threshold = 0.3
-                for pred in predictions:
-                    if len(pred) >= 5 and pred[4] > confidence_threshold:
-                        hands_count += 1
-                        
-                        # Extract bounding box
-                        x1, y1, x2, y2, conf = pred[:5]
-                        
-                        # Crop hand region from original frame
-                        h, w = frame.shape[:2]
-                        x1, y1, x2, y2 = int(x1 * w), int(y1 * h), int(x2 * w), int(y2 * h)
-                        
-                        # Ensure valid crop coordinates
-                        x1, y1 = max(0, x1), max(0, y1)
-                        x2, y2 = min(w, x2), min(h, y2)
-                        
-                        if x2 > x1 and y2 > y1:
-                            hand_crop = frame[y1:y2, x1:x2]
+                # Check if any detections were found
+                if len(boxes) > 0 and len(scores) > 0:
+                    # Filter by confidence threshold
+                    confidence_threshold = 0.3
+                    for i, (box, score) in enumerate(zip(boxes, scores)):
+                        if score > confidence_threshold:
+                            hands_count += 1
+                            total_confidence += score
                             
-                            # Classify gesture
-                            gesture_result = self._classify_gesture(hand_crop)
-                            if gesture_result:
-                                detected_gestures.append(gesture_result['gesture'])
-                                total_confidence += gesture_result['confidence']
+                            # Extract bounding box coordinates
+                            x1, y1, x2, y2 = box[:4]
+                            
+                            # Crop hand region from original frame
+                            h, w = frame.shape[:2]
+                            x1, y1, x2, y2 = int(x1 * w), int(y1 * h), int(x2 * w), int(y2 * h)
+                            
+                            # Ensure valid crop coordinates
+                            x1, y1 = max(0, x1), max(0, y1)
+                            x2, y2 = min(w, x2), min(h, y2)
+                            
+                            if x2 > x1 and y2 > y1:
+                                hand_crop = frame[y1:y2, x1:x2]
+                                
+                                # Classify gesture
+                                gesture_result = self._classify_gesture(hand_crop)
+                                if gesture_result:
+                                    detected_gestures.append(gesture_result['gesture'])
+                                    total_confidence += gesture_result['confidence']
             
             # Calculate average confidence from model
             avg_confidence = total_confidence / hands_count if hands_count > 0 else 0.0
@@ -343,15 +348,16 @@ class DynamicGesturesDetector:
         # Convert BGR to RGB
         rgb_frame = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         
-        # HaGRID normalization
+        # HaGRID normalization - ensure float32 throughout
         normalized = rgb_frame.astype(np.float32)
-        normalized = (normalized - [127, 127, 127]) / [128, 128, 128]
+        normalized = (normalized - 127.0) / 128.0  # Use float32 constants
         
         # Add batch dimension and transpose to NCHW
         input_tensor = np.transpose(normalized, (2, 0, 1))  # HWC to CHW
         input_tensor = np.expand_dims(input_tensor, axis=0)  # Add batch dimension
         
-        return input_tensor
+        # Ensure final output is float32
+        return input_tensor.astype(np.float32)
 
     def _classify_gesture(self, hand_crop):
         """Classify gesture from hand crop using ONNX classifier"""

@@ -14,7 +14,7 @@ import base64
 import json
 
 from model.face_model import FaceStressDetector
-from model.hand_model import HandConfidenceDetector
+from hand_model_client import hand_client
 # REMOVED: from model.eye_model import EyeConfidenceDetector - Using pure gaze tracking server instead
 from model.voice_model import VoiceConfidenceDetector
 from utils.database import DatabaseManager
@@ -31,7 +31,7 @@ class RealTimeAnalyzer:
         
         # Initialize models
         self.face_detector = FaceStressDetector()
-        self.hand_detector = HandConfidenceDetector()
+        # HAND MODEL: Using dedicated server on port 5002 via hand_client
         # PURE GAZE TRACKING: Using dedicated server on port 5001 (NO fallback)
         self.gaze_server_url = 'http://localhost:5001'
         self.voice_detector = VoiceConfidenceDetector()
@@ -407,7 +407,7 @@ class RealTimeAnalyzer:
                     
             elif model_index == 1:
                 # Hand confidence detection
-                hand_result = self.hand_detector.detect_confidence(frame)
+                hand_result = hand_client.detect_confidence(frame)
                 if hand_result and 'confidence_level' in hand_result:
                     self.current_results['hand_confidence'] = hand_result
                     logger.info(f"✋ Hand analysis: {hand_result.get('confidence_level')} (confidence: {hand_result.get('confidence', 0.0):.2f})")
