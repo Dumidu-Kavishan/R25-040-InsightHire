@@ -9,10 +9,13 @@ import queue
 import time
 import logging
 from datetime import datetime
+import requests
+import base64
+import json
 
 from model.face_model import FaceStressDetector
-from model.hand_model import HandConfidenceDetector
-from model.eye_model import EyeConfidenceDetector
+from hand_model_client import hand_client
+# REMOVED: from model.eye_model import EyeConfidenceDetector - Using pure gaze tracking server instead
 from model.voice_model import VoiceConfidenceDetector
 from utils.database import DatabaseManager
 
@@ -28,8 +31,9 @@ class RealTimeAnalyzer:
         
         # Initialize models
         self.face_detector = FaceStressDetector()
-        self.hand_detector = HandConfidenceDetector()
-        self.eye_detector = EyeConfidenceDetector()
+        # HAND MODEL: Using dedicated server on port 5002 via hand_client
+        # PURE GAZE TRACKING: Using dedicated server on port 5001 (NO fallback)
+        self.gaze_server_url = 'http://localhost:5001'
         self.voice_detector = VoiceConfidenceDetector()
         
         # Video processing
@@ -204,6 +208,93 @@ class RealTimeAnalyzer:
         self.last_audio_time = 0  # Reset timeout tracking
         self.last_voice_analysis_time = 0  # Reset analysis timing
     
+    def _detect_pure_gaze_tracking(self, frame):
+        """
+        Call pure gaze tracking server on port 5001 - NO OpenCV fallback
+        This ensures ONLY the real gaze tracking model is used
+        """
+        try:
+            # Convert frame to base64
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_base64 = base64.b64encode(buffer).decode('utf-8')
+
+            # Call pure gaze tracking server
+            response = requests.post(
+                f"{self.gaze_server_url}/detect_gaze",
+                json={'image': f"data:image/jpeg;base64,{frame_base64}"},
+                timeout=3.0
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+
+                # Convert pure gaze tracking result to expected format
+                gaze_analysis = result.get('gaze_analysis', {})
+
+                # Some gaze servers use 'gaze_detected' while some may use 'eyes_detected'
+                # Map both to a single boolean used by the frontend
+                eyes_detected = result.get('eyes_detected', result.get('gaze_detected', False))
+
+                # Build gaze_movements_detected similar to hand model's gestures_detected
+                # If the server already provides it, use that. Otherwise synthesize from gaze_analysis.
+                gaze_movements_detected = result.get('gaze_movements_detected', []) or []
+                if not gaze_movements_detected and isinstance(gaze_analysis, dict):
+                    # Common boolean flags from gaze_analysis
+                    for key in ('is_blinking', 'is_right', 'is_left', 'is_center'):
+                        val = gaze_analysis.get(key)
+                        if val is True:
+                            gaze_movements_detected.append(key)
+
+                    # Derive directions from ratios when explicit flags are missing
+                    try:
+                        hr = float(gaze_analysis.get('horizontal_ratio', 0) or 0)
+                        vr = float(gaze_analysis.get('vertical_ratio', 0) or 0)
+                        # Thresholds chosen to match likely left/right/center judgments
+                        if hr >= 0.65 and 'is_right' not in gaze_movements_detected:
+                            gaze_movements_detected.append('is_right_ratio')
+                        elif hr <= 0.35 and 'is_left' not in gaze_movements_detected:
+                            gaze_movements_detected.append('is_left_ratio')
+                        else:
+                            # If neither extreme, consider center
+                            if 0.35 < hr < 0.65 and 'is_center' not in gaze_movements_detected:
+                                gaze_movements_detected.append('is_center_ratio')
+
+                        # Vertical movements (optional)
+                        if vr >= 0.6 and 'is_down_ratio' not in gaze_movements_detected:
+                            gaze_movements_detected.append('is_down_ratio')
+                        elif vr <= 0.4 and 'is_up_ratio' not in gaze_movements_detected:
+                            gaze_movements_detected.append('is_up_ratio')
+                    except Exception:
+                        # Ignore any conversion errors and continue
+                        pass
+
+                # Map to the format expected by the frontend
+                formatted_result = {
+                    'confidence': result.get('confidence', 0.95),
+                    'confidence_level': result.get('confidence_level', 'confident'),
+                    'method': 'PURE_GAZE_TRACKING',  # NO fallback indicator
+                    'eyes_detected': bool(eyes_detected),
+                    'faces_detected': result.get('faces_detected', 1),
+                    'gaze_movements_detected': gaze_movements_detected,  # Like gestures_detected in hand model
+                    'timestamp': result.get('timestamp', datetime.now().isoformat()),
+                    'gaze_details': result.get('gaze_details', {}),  # Include detailed gaze data
+                    'gaze_data': gaze_analysis  # Include full gaze analysis for compatibility
+                }
+
+                logger.info(f"🎯 PURE gaze tracking success: {formatted_result['method']} - confidence: {formatted_result['confidence']:.2f}")
+                return formatted_result
+
+            else:
+                logger.error(f"❌ Pure gaze tracking server error: {response.status_code}")
+                return None
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Failed to connect to pure gaze tracking server: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error in pure gaze tracking: {e}")
+            return None
+
     def get_latest_results(self):
         """Get the latest analysis results"""
         return self.current_results.copy()
@@ -316,17 +407,17 @@ class RealTimeAnalyzer:
                     
             elif model_index == 1:
                 # Hand confidence detection
-                hand_result = self.hand_detector.detect_confidence(frame)
+                hand_result = hand_client.detect_confidence(frame)
                 if hand_result and 'confidence_level' in hand_result:
                     self.current_results['hand_confidence'] = hand_result
                     logger.info(f"✋ Hand analysis: {hand_result.get('confidence_level')} (confidence: {hand_result.get('confidence', 0.0):.2f})")
                     
             elif model_index == 2:
-                # Eye confidence detection
-                eye_result = self.eye_detector.detect_confidence(frame)
+                # PURE GAZE TRACKING: Call dedicated server on port 5001 (NO fallback)
+                eye_result = self._detect_pure_gaze_tracking(frame)
                 if eye_result and 'confidence_level' in eye_result:
                     self.current_results['eye_confidence'] = eye_result
-                    logger.info(f"👁️ Eye analysis: {eye_result.get('confidence_level')} (confidence: {eye_result.get('confidence', 0.0):.2f})")
+                    logger.info(f"👁️ PURE Gaze analysis: {eye_result.get('confidence_level')} (confidence: {eye_result.get('confidence', 0.0):.2f}) - NO fallback!")
             
             # Increment cycle for next analysis
             self.model_cycle += 1
@@ -703,7 +794,7 @@ class RealTimeAnalyzer:
             face_stress = self.current_results.get('face_stress', {})
             stress_level = face_stress.get('stress_level', 'no_data')
             faces_detected = face_stress.get('faces_detected', 0)
-            
+
             # Check if no face is detected - don't map to stress/non_stress
             if faces_detected == 0 or stress_level == 'no_face_detected':
                 # Keep the no_face_detected status without converting to binary
@@ -753,6 +844,7 @@ class RealTimeAnalyzer:
                     'confidence': 1,
                     'confidence_level': 'confident',
                     'hands_detected': hand_confidence.get('hands_detected', 0),
+                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ ADD THIS
                     'method': hand_confidence.get('method', 'unknown'),
                     'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
                 }
@@ -762,6 +854,7 @@ class RealTimeAnalyzer:
                     'confidence': 0,
                     'confidence_level': 'not_confident',
                     'hands_detected': hand_confidence.get('hands_detected', 0),
+                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ ADD THIS
                     'method': hand_confidence.get('method', 'unknown'),
                     'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
                 }
@@ -771,13 +864,15 @@ class RealTimeAnalyzer:
             eye_confidence_level = eye_confidence.get('confidence_level', 'no_data')
             
             # Convert confidence to binary: confident=1, not_confident=0
+            # ⚠️ PRESERVE the original eyes_detected and gaze_movements_detected from gaze server
             if eye_confidence_level and 'confident' in eye_confidence_level.lower() and 'not' not in eye_confidence_level.lower():
                 # Replace the entire eye_confidence object with binary format
                 self.current_results['eye_confidence'] = {
                     'confidence': 1,
                     'confidence_level': 'confident',
-                    'eyes_detected': eye_confidence.get('eyes_detected', 0),
+                    'eyes_detected': eye_confidence.get('eyes_detected', False),  # 🔧 PRESERVE original, default False
                     'faces_detected': eye_confidence.get('faces_detected', 0),
+                    'gaze_movements_detected': eye_confidence.get('gaze_movements_detected', []),  # 🔧 PRESERVE gaze movements
                     'method': eye_confidence.get('method', 'unknown'),
                     'timestamp': eye_confidence.get('timestamp', datetime.now().isoformat())
                 }
@@ -786,8 +881,9 @@ class RealTimeAnalyzer:
                 self.current_results['eye_confidence'] = {
                     'confidence': 0,
                     'confidence_level': 'not_confident',
-                    'eyes_detected': eye_confidence.get('eyes_detected', 0),
+                    'eyes_detected': eye_confidence.get('eyes_detected', False),  # 🔧 PRESERVE original, default False
                     'faces_detected': eye_confidence.get('faces_detected', 0),
+                    'gaze_movements_detected': eye_confidence.get('gaze_movements_detected', []),  # 🔧 PRESERVE gaze movements
                     'method': eye_confidence.get('method', 'unknown'),
                     'timestamp': eye_confidence.get('timestamp', datetime.now().isoformat())
                 }

@@ -41,6 +41,9 @@ InsightHire/
 venv/
 env/
 ENV/
+InsightHire_Windows/
+MainBackend_Env/
+EyeTracking_Env/
 
 # Logs
 *.log
