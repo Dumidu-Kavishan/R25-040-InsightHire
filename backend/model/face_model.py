@@ -187,10 +187,13 @@ class FaceStressDetector:
             if len(faces) == 0:
                 logger.warning("⚠️ No faces detected in frame")
                 return {
-                    'stress_level': 'unknown',
+                    'stress_level': 'no_face_detected',
                     'confidence': 0.0,
                     'faces_detected': 0,
-                    'method': 'emotion_mapping'
+                    'emotion': 'no_face_detected',
+                    'emotion_confidence': 0.0,
+                    'method': 'emotion_mapping',
+                    'timestamp': datetime.now().isoformat()
                 }
             
             logger.info(f"✅ Found {len(faces)} face(s)")

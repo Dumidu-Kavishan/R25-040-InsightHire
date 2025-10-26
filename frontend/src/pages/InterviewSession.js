@@ -307,6 +307,10 @@ const InterviewSession = () => {
       const level = analysisData[type].toLowerCase();
       
       if (type === 'stress_level') {
+        // Handle no face detected - don't chart it (return null to skip)
+        if (level === 'no_face_detected' || (analysisData.faces_detected === 0)) {
+          return null; // Don't add to chart
+        }
         return level === 'stress' ? 1 : 0;
       } else if (type === 'confidence_level') {
         return level === 'confident' ? 1 : 0;
@@ -318,20 +322,23 @@ const InterviewSession = () => {
     // Update Stress Chart (Face Stress only)
     const faceStressValue = convertToChartValue(results.face_stress, 'stress_level');
     
-    setStressChartData(prevData => {
-      const newData = { ...prevData };
-      
-      // Keep only last 20 data points
-      if (newData.labels.length >= 20) {
-        newData.labels.shift();
-        newData.datasets[0].data.shift();
-      }
+    // Only update chart if we have a valid face detection (not null)
+    if (faceStressValue !== null) {
+      setStressChartData(prevData => {
+        const newData = { ...prevData };
+        
+        // Keep only last 20 data points
+        if (newData.labels.length >= 20) {
+          newData.labels.shift();
+          newData.datasets[0].data.shift();
+        }
 
-      newData.labels.push(currentTime);
-      newData.datasets[0].data.push(faceStressValue);
+        newData.labels.push(currentTime);
+        newData.datasets[0].data.push(faceStressValue);
 
-      return newData;
-    });
+        return newData;
+      });
+    }
 
     // Update Confidence Chart (Hand, Eye, Voice)
     const handConfValue = convertToChartValue(results.hand_confidence, 'confidence_level');
@@ -591,6 +598,11 @@ const InterviewSession = () => {
     // Show idle state before interview starts
     if (!isInterviewActive) {
       return { label: 'idle', color: '#9CA3AF', progress: 0 };
+    }
+    
+    // Check for no face detected
+    if (faceStress && (faceStress.faces_detected === 0 || faceStress.stress_level === 'no_face_detected')) {
+      return { label: 'no face detected', color: '#FF9800', progress: 0 };
     }
     
     if (!faceStress || !faceStress.stress_level || faceStress.stress_level === 'no_data') {

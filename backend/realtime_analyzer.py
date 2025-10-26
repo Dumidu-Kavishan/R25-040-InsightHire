@@ -702,9 +702,22 @@ class RealTimeAnalyzer:
             # Transform Face Stress to binary format
             face_stress = self.current_results.get('face_stress', {})
             stress_level = face_stress.get('stress_level', 'no_data')
+            faces_detected = face_stress.get('faces_detected', 0)
             
+            # Check if no face is detected - don't map to stress/non_stress
+            if faces_detected == 0 or stress_level == 'no_face_detected':
+                # Keep the no_face_detected status without converting to binary
+                self.current_results['face_stress'] = {
+                    'stress_level': 'no_face_detected',
+                    'emotion': 'no_face_detected',
+                    'emotion_confidence': 0.0,
+                    'face_coordinates': [],
+                    'faces_detected': 0,
+                    'method': face_stress.get('method', 'no_face_detected'),
+                    'timestamp': face_stress.get('timestamp', datetime.now().isoformat())
+                }
             # Convert stress_level to binary: stress=1, non_stress=0
-            if stress_level == 'stress':
+            elif stress_level == 'stress':
                 # Replace the entire face_stress object with binary format
                 self.current_results['face_stress'] = {
                     'stress': 1,
@@ -809,10 +822,15 @@ class RealTimeAnalyzer:
                     'timestamp': voice_confidence.get('timestamp', datetime.now().isoformat())
                 }
                 
-            logger.debug(f"📊 Converted to binary format - Face stress: {self.current_results['face_stress'].get('stress', 'N/A')}, "
-                        f"Hand confidence: {self.current_results['hand_confidence'].get('confidence', 'N/A')}, "
-                        f"Eye confidence: {self.current_results['eye_confidence'].get('confidence', 'N/A')}, "
-                        f"Voice confidence: {self.current_results['voice_confidence'].get('confidence', 'N/A')}")
+            # Log the conversion results
+            face_status = self.current_results['face_stress'].get('stress_level', 'N/A')
+            if face_status == 'no_face_detected':
+                logger.info(f"📊 Face stress: NO FACE DETECTED - kept as is (not converted to binary)")
+            else:
+                logger.debug(f"📊 Converted to binary format - Face stress: {self.current_results['face_stress'].get('stress', 'N/A')}, "
+                            f"Hand confidence: {self.current_results['hand_confidence'].get('confidence', 'N/A')}, "
+                            f"Eye confidence: {self.current_results['eye_confidence'].get('confidence', 'N/A')}, "
+                            f"Voice confidence: {self.current_results['voice_confidence'].get('confidence', 'N/A')}")
             
         except Exception as e:
             logger.error(f"Error converting to binary format: {e}")
