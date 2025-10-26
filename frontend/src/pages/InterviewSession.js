@@ -974,6 +974,9 @@ const InterviewSession = () => {
               enableVideo={showVideo}
               captureInterval={1000}
               hideStartButton={true}
+              interviewId={sessionId}
+              interviewerId={interview?.user_id}
+              interviewerName={interview?.user_name || 'Interviewer'}
             />
 
             {/* Clean Session Controls */}

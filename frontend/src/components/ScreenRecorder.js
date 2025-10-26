@@ -73,7 +73,10 @@ const ScreenRecorder = forwardRef(({
   enableAudio = true,
   enableVideo = true,
   captureInterval = 10000, // Capture frame every 10 seconds to match analysis interval
-  hideStartButton = false 
+  hideStartButton = false,
+  interviewId = null,
+  interviewerId = null,
+  interviewerName = null
 }, ref) => {
   const { isDarkMode } = useTheme();
   const videoRef = useRef(null);
@@ -83,6 +86,8 @@ const ScreenRecorder = forwardRef(({
   const intervalRef = useRef(null);
   const audioTimeoutRef = useRef(null);
   const isRecordingRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStatus, setRecordingStatus] = useState('stopped');
@@ -297,6 +302,23 @@ const ScreenRecorder = forwardRef(({
         toast.warning('No system audio captured - enable audio sharing when prompted');
       }
 
+      // Start 30-second audio clip recording
+      console.log('🔍 Checking 30-second clip recording conditions:', {
+        enableAudio,
+        hasSystemAudioTrack: !!systemAudioTrack,
+        systemAudioTrackId: systemAudioTrack?.id
+      });
+      
+      if (enableAudio && systemAudioTrack) {
+        console.log('🎙️ Starting 30-second audio clip recording...');
+        startAudioClipRecording(screenStream);
+      } else {
+        console.warn('⚠️ Skipping 30-second audio clip recording because:', {
+          enableAudio,
+          hasSystemAudioTrack: !!systemAudioTrack
+        });
+      }
+
       // Handle stream end
       videoTrack.addEventListener('ended', () => {
         stopRecording();
@@ -357,6 +379,14 @@ const ScreenRecorder = forwardRef(({
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
+    }
+    
+    // Stop MediaRecorder for audio clips
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      console.log('🛑 Stopping audio clip recorder');
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
     }
     
     // Clear audio analysis timeout
@@ -543,6 +573,149 @@ const ScreenRecorder = forwardRef(({
     } catch (error) {
       console.error('❌ Error setting up audio analysis:', error);
       toast.error(`Audio analysis setup failed: ${error.message}`);
+    }
+  };
+
+  const startAudioClipRecording = (stream) => {
+    try {
+      console.log('🎙️ Inside startAudioClipRecording function...');
+      console.log('📊 Stream has audio tracks:', stream?.getAudioTracks()?.length || 0);
+      
+      // Get the audio track from the stream
+      const audioTracks = stream.getAudioTracks();
+      console.log('🎵 Audio tracks found:', audioTracks.length);
+      
+      if (audioTracks.length === 0) {
+        console.warn('⚠️ No audio tracks available for clip recording');
+        console.warn('📊 Stream tracks:', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
+        return;
+      }
+
+      // Create a new MediaStream with just the audio track
+      const audioStream = new MediaStream(audioTracks);
+
+      // Create MediaRecorder for the audio stream
+      const mediaRecorder = new MediaRecorder(audioStream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      // Handle data available event
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+          console.log('📦 Audio chunk received, size:', event.data.size);
+        }
+      };
+
+      // Handle recording stop
+      mediaRecorder.onstop = () => {
+        console.log('🛑 Audio clip recording stopped');
+        
+        // Create blob from chunks
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        // Convert blob to base64 for storage
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Audio = reader.result;
+          
+          // Save audio clip to backend
+          await saveAudioClip(base64Audio);
+          
+          // Clear chunks for next recording
+          audioChunksRef.current = [];
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      // Start recording
+      mediaRecorder.start();
+      console.log('✅ Audio clip recording started');
+
+      // Stop and restart recording every 30 seconds
+      setTimeout(() => {
+        if (mediaRecorderRef.current && isRecordingRef.current) {
+          console.log('⏱️ 30 seconds elapsed, stopping current clip and starting new one');
+          mediaRecorderRef.current.stop();
+          
+          // Start new recording after 1 second
+          setTimeout(() => {
+            if (isRecordingRef.current && streamRef.current) {
+              startAudioClipRecording(streamRef.current);
+            }
+          }, 1000);
+        }
+      }, 30000); // 30 seconds
+
+    } catch (error) {
+      console.error('❌ Error starting audio clip recording:', error);
+      toast.error(`Audio clip recording failed: ${error.message}`);
+    }
+  };
+
+      const saveAudioClip = async (base64Audio) => {
+    try {
+      console.log('💾 Saving voice clip to backend...');
+      
+      // Use props or URL to get interview information
+      const sessionId = interviewId || window.location.pathname.split('/').pop();
+      
+      const audioClipData = {
+        interview_id: sessionId,
+        interviewer_id: interviewerId,
+        interviewer_name: interviewerName,
+        audio_base64: base64Audio.split(',')[1], // Remove data URL prefix
+        duration: 30,
+        timestamp: new Date().toISOString(),
+        file_format: 'webm'
+      };
+      
+      console.log('📤 Sending voice clip data:', {
+        interview_id: audioClipData.interview_id,
+        interviewer_id: audioClipData.interviewer_id,
+        audio_base64_length: audioClipData.audio_base64?.length || 0
+      });
+
+      // Get the API base URL from environment or config
+      const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      
+      // Get user ID from localStorage
+      const userString = localStorage.getItem('user');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (userString) {
+        const user = JSON.parse(userString);
+        if (user.uid) {
+          headers['X-User-ID'] = user.uid;
+        }
+      }
+      
+      console.log('📤 Sending POST request to:', `${apiBaseUrl}/interviews/voice-clips`);
+      
+      // Send to backend
+      const response = await fetch(`${apiBaseUrl}/interviews/voice-clips`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(audioClipData)
+      });
+
+      console.log('📥 Received response status:', response.status);
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        console.log('✅ Audio clip saved successfully:', result.clip_id);
+        console.log('🎉 Collection "voice_clips" and "voice_analysis" should now exist in Firebase!');
+      } else {
+        console.error('❌ Failed to save audio clip:', result.message);
+      }
+    } catch (error) {
+      console.error('❌ Error saving audio clip:', error);
+      console.error('❌ Error details:', error.message);
     }
   };
 

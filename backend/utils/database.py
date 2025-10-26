@@ -957,3 +957,124 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error checking user premium access: {e}")
             return {'has_premium': False}
+    
+    # ==================== VOICE CLIPS MANAGEMENT ====================
+    
+    def save_voice_clip(self, clip_data):
+        """Save a 30-second voice clip from an interview"""
+        try:
+            clip_id = str(uuid.uuid4())
+            logger.info(f"🎙️ Creating voice_clips document with ID: {clip_id}")
+            
+            voice_clip_data = {
+                'clip_id': clip_id,
+                'interview_id': clip_data.get('interview_id'),
+                'interviewer_id': clip_data.get('interviewer_id'),
+                'interviewer_name': clip_data.get('interviewer_name'),
+                'audio_base64': clip_data.get('audio_base64'),
+                'duration': clip_data.get('duration', 30),
+                'timestamp': clip_data.get('timestamp', datetime.now().isoformat()),
+                'file_format': clip_data.get('file_format', 'webm'),
+                'created_at': datetime.now().isoformat()
+            }
+            
+            logger.info(f"📝 Saving to collection 'voice_clips'...")
+            logger.info(f"📊 Data: interview_id={voice_clip_data['interview_id']}, interviewer_id={voice_clip_data['interviewer_id']}, duration={voice_clip_data['duration']}")
+            
+            voice_clip_ref = self.db.collection('voice_clips').document(clip_id)
+            voice_clip_ref.set(voice_clip_data)
+            
+            logger.info(f"✅ Voice clip document created in 'voice_clips' collection with ID: {clip_id}")
+            return clip_id
+        except Exception as e:
+            logger.error(f"❌ Error saving voice clip to 'voice_clips' collection: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
+            return None
+    
+    def get_voice_clips_for_interview(self, interview_id):
+        """Get all voice clips for a specific interview"""
+        try:
+            voice_clips_ref = self.db.collection('voice_clips')
+            query = voice_clips_ref.where('interview_id', '==', interview_id).order_by('timestamp')
+            docs = query.stream()
+            
+            voice_clips = []
+            for doc in docs:
+                voice_clips.append({'id': doc.id, **doc.to_dict()})
+            
+            logger.info(f"Retrieved {len(voice_clips)} voice clips for interview: {interview_id}")
+            return voice_clips
+        except Exception as e:
+            logger.error(f"Error getting voice clips for interview: {e}")
+            return []
+    
+    def get_voice_clip(self, clip_id):
+        """Get a specific voice clip by ID"""
+        try:
+            voice_clip_ref = self.db.collection('voice_clips').document(clip_id)
+            doc = voice_clip_ref.get()
+            
+            if doc.exists:
+                return {'id': doc.id, **doc.to_dict()}
+            return None
+        except Exception as e:
+            logger.error(f"Error getting voice clip: {e}")
+            return None
+    
+    # ==================== VOICE ANALYSIS MANAGEMENT ====================
+    
+    def save_voice_analysis(self, analysis_data):
+        """Save voice analysis results for a 30-second clip"""
+        try:
+            analysis_id = str(uuid.uuid4())
+            
+            logger.info(f"📊 Creating voice_analysis document with ID: {analysis_id}")
+            logger.info(f"📊 Analysis data received: {analysis_data}")
+            
+            voice_analysis_data = {
+                'analysis_id': analysis_id,
+                'interview_id': analysis_data.get('interview_id'),
+                'clip_id': analysis_data.get('clip_id'),
+                'interviewer_id': analysis_data.get('interviewer_id'),
+                'timestamp': analysis_data.get('timestamp', datetime.now().isoformat()),
+                'confidence_level': analysis_data.get('confidence_level'),
+                'confidence': analysis_data.get('confidence'),
+                'emotion': analysis_data.get('emotion', 'neutral'),
+                'raw_confidence': analysis_data.get('raw_confidence'),
+                'emotion_confidence': analysis_data.get('emotion_confidence'),  # Percentage confidence
+                'audio_quality': analysis_data.get('audio_quality'),
+                'created_at': datetime.now().isoformat()
+            }
+            
+            logger.info(f"📊 Data to save: {voice_analysis_data}")
+            logger.info(f"📊 Saving to collection 'voice_analysis'...")
+            
+            voice_analysis_ref = self.db.collection('voice_analysis').document(analysis_id)
+            voice_analysis_ref.set(voice_analysis_data)
+            
+            logger.info(f"✅ Voice analysis saved to 'voice_analysis' collection with ID: {analysis_id}")
+            logger.info(f"✅ Collection 'voice_analysis' HAS BEEN CREATED in Firebase!")
+            return analysis_id
+        except Exception as e:
+            logger.error(f"❌ Error saving voice analysis: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
+            return None
+    
+    def get_voice_analysis_for_interview(self, interview_id):
+        """Get all voice analysis results for a specific interview"""
+        try:
+            voice_analysis_ref = self.db.collection('voice_analysis')
+            query = voice_analysis_ref.where('interview_id', '==', interview_id).order_by('timestamp')
+            docs = query.stream()
+            
+            analysis_results = []
+            for doc in docs:
+                analysis_results.append({'id': doc.id, **doc.to_dict()})
+            
+            logger.info(f"Retrieved {len(analysis_results)} voice analysis results for interview: {interview_id}")
+            return analysis_results
+        except Exception as e:
+            logger.error(f"Error getting voice analysis for interview: {e}")
+            return []

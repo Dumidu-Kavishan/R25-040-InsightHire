@@ -574,6 +574,364 @@ def stop_interview(interview_id):
         logger.error(f"Error stopping interview: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+def analyze_voice_clip(audio_base64):
+    """Analyze a voice clip using the actual voice model"""
+    try:
+        import base64
+        import numpy as np
+        import librosa
+        import io
+        import pickle
+        from tensorflow.keras.models import model_from_json
+        import warnings
+        warnings.filterwarnings("ignore")
+        
+        # Decode base64 audio data
+        audio_bytes = base64.b64decode(audio_base64)
+        logger.info(f"📊 Decoded {len(audio_bytes)} bytes of audio data")
+        
+        # Load audio (WebM format support)
+        try:
+            audio_data, sample_rate = librosa.load(io.BytesIO(audio_bytes), sr=22050)
+            logger.info(f"📊 Loaded audio: {len(audio_data)} samples at {sample_rate}Hz")
+        except Exception as load_err:
+            logger.error(f"❌ Could not load audio with librosa: {load_err}")
+            # Try alternative loading
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
+                temp_file.write(audio_bytes)
+                temp_file.flush()
+                temp_path = temp_file.name
+                
+            try:
+                audio_data, sample_rate = librosa.load(temp_path, sr=22050)
+                logger.info(f"📊 Loaded audio from temp file: {len(audio_data)} samples at {sample_rate}Hz")
+                os.unlink(temp_path)  # Clean up
+            except Exception as temp_err:
+                logger.error(f"❌ Could not load from temp file either: {temp_err}")
+                return simple_audio_analysis(None, 22050)
+        
+        # Load model and preprocessors (using actual paths)
+        try:
+            model_dir = "/Users/dumidu/Documents/R25-040-InsightHire/Models/Voice"
+            logger.info(f"📂 Looking for model files in: {model_dir}")
+            
+            # Check if files exist
+            import os
+            model_files = {
+                'json': f'{model_dir}/Confident_model.json',
+                'weights': f'{model_dir}/Confident_model.weights.h5',
+                'scaler': f'{model_dir}/scaler2.pickle',
+                'encoder': f'{model_dir}/encoder2.pickle'
+            }
+            
+            for name, path in model_files.items():
+                if os.path.exists(path):
+                    logger.info(f"✅ Found {name}: {path}")
+                else:
+                    logger.error(f"❌ Missing {name}: {path}")
+                    raise FileNotFoundError(f"Model file not found: {path}")
+            
+            # Load model
+            logger.info("🔬 Loading voice model...")
+            json_file = open(f'{model_dir}/Confident_model.json', 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(f"{model_dir}/Confident_model.weights.h5")
+            loaded_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+            
+            # Load scaler
+            logger.info("🔬 Loading scaler...")
+            with open(f'{model_dir}/scaler2.pickle', 'rb') as f:
+                scaler = pickle.load(f)
+            
+            # Load encoder
+            logger.info("🔬 Loading encoder...")
+            with open(f'{model_dir}/encoder2.pickle', 'rb') as f:
+                encoder = pickle.load(f)
+            
+            logger.info("✅ Voice model loaded successfully - using REAL model predictions!")
+            
+        except Exception as model_error:
+            logger.error(f"❌ Error loading voice model: {model_error}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            logger.warning("⚠️ Falling back to simple audio analysis")
+            # Fallback to simple analysis
+            return simple_audio_analysis(audio_data, sample_rate)
+        
+        # Feature extraction functions
+        def zcr(data, frame_length=2048, hop_length=512):
+            zcr = librosa.feature.zero_crossing_rate(data, frame_length=frame_length, hop_length=hop_length)
+            return np.squeeze(zcr)
+        
+        def rmse(data, frame_length=2048, hop_length=512):
+            rmse = librosa.feature.rms(y=data, frame_length=frame_length, hop_length=hop_length)
+            return np.squeeze(rmse)
+        
+        def mfcc(data, sr, frame_length=2048, hop_length=512, n_mfcc=22, flatten=True):
+            mfcc = librosa.feature.mfcc(y=data, sr=sr, n_mfcc=n_mfcc)
+            return np.squeeze(mfcc.T) if not flatten else np.ravel(mfcc.T)
+        
+        def extract_features(data, sr=22050, frame_length=2048, hop_length=512, n_mfcc=22):
+            result = np.array([])
+            result = np.hstack((result,
+                                zcr(data, frame_length, hop_length),
+                                rmse(data, frame_length, hop_length),
+                                mfcc(data, sr=sr, frame_length=frame_length, hop_length=hop_length, n_mfcc=n_mfcc)
+                               ))
+            return result
+        
+        # Extract features
+        logger.info("🔬 Extracting audio features...")
+        features = extract_features(audio_data, sample_rate, n_mfcc=22)
+        
+        if features is None or len(features) == 0:
+            logger.warning("Could not extract features")
+            return simple_audio_analysis(audio_data, sample_rate)
+        
+        logger.info(f"📊 Extracted {len(features)} features")
+        
+        # Prepare features for prediction
+        features = np.array(features).reshape(1, -1)
+        
+        # Pad or truncate to match expected length (2376)
+        if features.shape[1] < 2376:
+            features = np.pad(features, ((0, 0), (0, 2376 - features.shape[1])), mode='constant')
+            logger.warning(f"Features padded to match expected length of 2376")
+        elif features.shape[1] > 2376:
+            features = features[:, :2376]
+            logger.warning(f"Features truncated to match expected length of 2376")
+        
+        # Scale features
+        features_scaled = scaler.transform(features)
+        features_scaled = features_scaled.reshape((features_scaled.shape[0], features_scaled.shape[1], 1))
+        
+        # Predict emotion
+        logger.info("🔬 Running model prediction...")
+        prediction = loaded_model.predict(features_scaled, verbose=0)
+        logger.info(f"📊 Model prediction output: {prediction}")
+        logger.info(f"📊 Prediction shape: {prediction.shape}")
+        logger.info(f"📊 Max prediction value: {np.max(prediction)}")
+        logger.info(f"📊 Prediction array: {prediction}")
+        
+        predicted_emotion = encoder.inverse_transform(prediction)[0][0]
+        
+        # Confidence mapping based on emotion
+        confident_mapping = {
+            'angry': 'Non-Confident',
+            'disgust': 'Non-Confident',
+            'fear': 'Non-Confident',
+            'happy': 'Confident',
+            'neutral': 'Confident',
+            'sad': 'Non-Confident',
+            'surprise': 'Non-Confident'
+        }
+        
+        confident_level = confident_mapping.get(predicted_emotion, 'Non-Confident')
+        
+        # Calculate match percentage
+        emotion_confidence = float(np.max(prediction)) * 100
+        
+        # Convert to our database format
+        if confident_level == 'Confident':
+            db_confidence_level = 'confident'
+            db_confidence_score = emotion_confidence / 100
+        else:
+            db_confidence_level = 'not_confident'
+            db_confidence_score = (100 - emotion_confidence) / 100
+        
+        logger.info(f"✅ Voice analysis completed: Emotion={predicted_emotion}, Confident={confident_level} ({emotion_confidence:.2f}%)")
+        logger.info(f"📊 Will save to DB: confidence_level={db_confidence_level}, confidence={db_confidence_score}, emotion={predicted_emotion}")
+        
+        return {
+            'confidence_level': db_confidence_level,
+            'confidence': db_confidence_score,
+            'emotion': predicted_emotion,
+            'raw_confidence': float(np.max(prediction)),
+            'emotion_confidence': float(emotion_confidence),
+            'audio_quality': {
+                'quality_score': db_confidence_score,
+                'duration_seconds': len(audio_data) / sample_rate,
+                'feature_count': len(features[0])
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error analyzing voice clip: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        return simple_audio_analysis(audio_data, sample_rate) if 'audio_data' in locals() else {
+            'confidence_level': 'error',
+            'confidence': 0.0,
+            'emotion': 'neutral',
+            'raw_confidence': 0.0,
+            'audio_quality': {'quality_score': 0.0},
+            'error': str(e)
+        }
+
+def simple_audio_analysis(audio_data, sample_rate):
+    """Fallback simple audio analysis if model fails"""
+    import numpy as np
+    
+    # Volume level
+    rms = np.sqrt(np.mean(audio_data ** 2))
+    
+    # Frequency analysis
+    fft = np.fft.fft(audio_data)
+    freqs = np.fft.fftfreq(len(fft), 1/sample_rate)
+    magnitude = np.abs(fft)
+    
+    # Speech frequency range
+    speech_band = (freqs >= 80) & (freqs <= 8000)
+    speech_energy = np.sum(magnitude[speech_band])
+    total_energy = np.sum(magnitude)
+    frequency_coverage = speech_energy / (total_energy + 1e-10)
+    
+    # Simple confidence score
+    if rms > 0.1 and frequency_coverage > 0.3:
+        confidence_score = min(1.0, (rms * 5 + frequency_coverage * 2) / 2)
+        if confidence_score > 0.5:
+            confidence_level = 'confident'
+            emotion = 'neutral'
+        else:
+            confidence_level = 'not_confident'
+            emotion = 'uncertain'
+    else:
+        confidence_score = 0.2
+        confidence_level = 'not_confident'
+        emotion = 'quiet'
+    
+    return {
+        'confidence_level': confidence_level,
+        'confidence': float(confidence_score),
+        'emotion': emotion,
+        'raw_confidence': float(confidence_score),
+        'audio_quality': {
+            'quality_score': float(frequency_coverage),
+            'rms': float(rms),
+            'frequency_coverage': float(frequency_coverage),
+            'duration_seconds': float(len(audio_data) / sample_rate)
+        }
+    }
+
+@app.route('/api/interviews/voice-clips', methods=['POST'])
+def save_voice_clip():
+    """Save a 30-second voice clip from an interview and analyze it"""
+    user_id = get_user_id_from_request()
+    
+    if not user_id:
+        return jsonify({'status': 'error', 'message': 'User ID is required'}), 400
+    
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Voice clip data required'}), 400
+        
+        # Validate required fields
+        if not data.get('interview_id'):
+            return jsonify({'status': 'error', 'message': 'Interview ID is required'}), 400
+        
+        if not data.get('audio_base64'):
+            return jsonify({'status': 'error', 'message': 'Audio data is required'}), 400
+        
+        db_manager = DatabaseManager()
+        
+        # Verify interview exists and belongs to user (optional but recommended)
+        interview = db_manager.get_interview(data.get('interview_id'))
+        if interview and interview.get('user_id') != user_id:
+            return jsonify({'status': 'error', 'message': 'Unauthorized access to interview'}), 403
+        
+        # Save voice clip
+        logger.info(f"🎙️ Attempting to save voice clip for interview: {data.get('interview_id')}")
+        logger.info(f"📝 Clip data keys: {list(data.keys())}")
+        clip_id = db_manager.save_voice_clip(data)
+        
+        if clip_id:
+            logger.info(f"✅ Voice clip saved to Firebase collection 'voice_clips' with ID: {clip_id}")
+            
+            # NOW ANALYZE THE AUDIO
+            logger.info(f"🔬 Starting voice analysis for clip {clip_id}...")
+            analysis_result = analyze_voice_clip(data.get('audio_base64'))
+            
+            # Save analysis results
+            logger.info(f"📊 Preparing to save analysis results for clip {clip_id}")
+            logger.info(f"📊 Analysis result keys: {list(analysis_result.keys())}")
+            
+            analysis_data = {
+                'interview_id': data.get('interview_id'),
+                'clip_id': clip_id,
+                'interviewer_id': data.get('interviewer_id'),
+                'timestamp': data.get('timestamp', datetime.now().isoformat()),
+                'confidence_level': analysis_result.get('confidence_level'),
+                'confidence': analysis_result.get('confidence', 0.0),
+                'emotion': analysis_result.get('emotion', 'neutral'),
+                'raw_confidence': analysis_result.get('raw_confidence', 0.0),
+                'emotion_confidence': analysis_result.get('emotion_confidence', 0.0),
+                'audio_quality': analysis_result.get('audio_quality', {})
+            }
+            
+            logger.info(f"📊 Analysis data prepared: {analysis_data}")
+            analysis_id = db_manager.save_voice_analysis(analysis_data)
+            
+            if analysis_id:
+                logger.info(f"✅ Voice analysis saved to 'voice_analysis' collection with ID: {analysis_id}")
+                logger.info(f"✅ Collection 'voice_analysis' has been created in Firebase!")
+            else:
+                logger.error("❌ Failed to save voice analysis - check logs above for error")
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Voice clip and analysis saved successfully',
+                'clip_id': clip_id,
+                'analysis_id': analysis_id
+            })
+        else:
+            logger.error("❌ Failed to save voice clip to Firebase")
+            return jsonify({'status': 'error', 'message': 'Failed to save voice clip'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error saving voice clip: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/interviews/<interview_id>/voice-clips', methods=['GET'])
+def get_voice_clips(interview_id):
+    """Get all voice clips for a specific interview"""
+    user_id = get_user_id_from_request()
+    
+    if not user_id:
+        return jsonify({'status': 'error', 'message': 'User ID is required'}), 400
+    
+    try:
+        db_manager = DatabaseManager()
+        
+        # Verify interview exists and belongs to user
+        interview = db_manager.get_interview(interview_id)
+        if not interview or interview.get('user_id') != user_id:
+            return jsonify({'status': 'error', 'message': 'Interview not found'}), 404
+        
+        # Get voice clips
+        voice_clips = db_manager.get_voice_clips_for_interview(interview_id)
+        
+        # Remove base64 audio data to reduce response size (can be fetched separately if needed)
+        clips_info = []
+        for clip in voice_clips:
+            clip_info = {k: v for k, v in clip.items() if k != 'audio_base64'}
+            clips_info.append(clip_info)
+        
+        return jsonify({
+            'status': 'success',
+            'voice_clips': clips_info,
+            'count': len(clips_info)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting voice clips: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/api/interviews/<interview_id>/analysis', methods=['POST'])
 def save_interview_analysis(interview_id):
     """Save real-time analysis data for interview"""
