@@ -836,15 +836,27 @@ class RealTimeAnalyzer:
             # Transform Hand Confidence to binary format
             hand_confidence = self.current_results.get('hand_confidence', {})
             confidence_level = hand_confidence.get('confidence_level', 'no_data')
+            hands_detected = hand_confidence.get('hands_detected', 0)
             
+            # Check if no hand is detected - don't map to confident/not_confident (similar to face/eye detection)
+            if hands_detected == 0 or confidence_level in ['no_hands_detected', 'no_hand_detected']:
+                # Keep the no_hands_detected status without converting to binary
+                self.current_results['hand_confidence'] = {
+                    'confidence_level': 'no_hands_detected',
+                    'confidence': 0.0,
+                    'hands_detected': 0,
+                    'gestures_detected': [],
+                    'method': hand_confidence.get('method', 'no_hands_detected'),
+                    'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
+                }
             # Convert confidence to binary: confident=1, not_confident=0
-            if confidence_level and 'confident' in confidence_level.lower() and 'not' not in confidence_level.lower():
+            elif confidence_level and 'confident' in confidence_level.lower() and 'not' not in confidence_level.lower():
                 # Replace the entire hand_confidence object with binary format
                 self.current_results['hand_confidence'] = {
                     'confidence': 1,
                     'confidence_level': 'confident',
-                    'hands_detected': hand_confidence.get('hands_detected', 0),
-                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ ADD THIS
+                    'hands_detected': hands_detected,
+                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ PRESERVE gestures
                     'method': hand_confidence.get('method', 'unknown'),
                     'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
                 }
@@ -853,8 +865,8 @@ class RealTimeAnalyzer:
                 self.current_results['hand_confidence'] = {
                     'confidence': 0,
                     'confidence_level': 'not_confident',
-                    'hands_detected': hand_confidence.get('hands_detected', 0),
-                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ ADD THIS
+                    'hands_detected': hands_detected,
+                    'gestures_detected': hand_confidence.get('gestures_detected', []),  # ✅ PRESERVE gestures
                     'method': hand_confidence.get('method', 'unknown'),
                     'timestamp': hand_confidence.get('timestamp', datetime.now().isoformat())
                 }
@@ -862,16 +874,30 @@ class RealTimeAnalyzer:
             # Transform Eye Confidence to binary format
             eye_confidence = self.current_results.get('eye_confidence', {})
             eye_confidence_level = eye_confidence.get('confidence_level', 'no_data')
+            eyes_detected = eye_confidence.get('eyes_detected', 0)
+            faces_detected_eye = eye_confidence.get('faces_detected', 0)
             
+            # Check if no eye is detected - don't map to confident/not_confident (similar to face stress)
+            if faces_detected_eye == 0 or eyes_detected == 0 or eye_confidence_level in ['no_eyes_detected', 'no_face_detected']:
+                # Keep the no_eyes_detected status without converting to binary
+                self.current_results['eye_confidence'] = {
+                    'confidence_level': 'no_eyes_detected',
+                    'confidence': 0.0,
+                    'eyes_detected': 0,
+                    'faces_detected': 0,
+                    'gaze_movements_detected': [],
+                    'method': eye_confidence.get('method', 'no_eyes_detected'),
+                    'timestamp': eye_confidence.get('timestamp', datetime.now().isoformat())
+                }
             # Convert confidence to binary: confident=1, not_confident=0
             # ⚠️ PRESERVE the original eyes_detected and gaze_movements_detected from gaze server
-            if eye_confidence_level and 'confident' in eye_confidence_level.lower() and 'not' not in eye_confidence_level.lower():
+            elif eye_confidence_level and 'confident' in eye_confidence_level.lower() and 'not' not in eye_confidence_level.lower():
                 # Replace the entire eye_confidence object with binary format
                 self.current_results['eye_confidence'] = {
                     'confidence': 1,
                     'confidence_level': 'confident',
-                    'eyes_detected': eye_confidence.get('eyes_detected', False),  # 🔧 PRESERVE original, default False
-                    'faces_detected': eye_confidence.get('faces_detected', 0),
+                    'eyes_detected': eyes_detected,  # 🔧 PRESERVE original
+                    'faces_detected': faces_detected_eye,
                     'gaze_movements_detected': eye_confidence.get('gaze_movements_detected', []),  # 🔧 PRESERVE gaze movements
                     'method': eye_confidence.get('method', 'unknown'),
                     'timestamp': eye_confidence.get('timestamp', datetime.now().isoformat())
@@ -881,8 +907,8 @@ class RealTimeAnalyzer:
                 self.current_results['eye_confidence'] = {
                     'confidence': 0,
                     'confidence_level': 'not_confident',
-                    'eyes_detected': eye_confidence.get('eyes_detected', False),  # 🔧 PRESERVE original, default False
-                    'faces_detected': eye_confidence.get('faces_detected', 0),
+                    'eyes_detected': eyes_detected,  # 🔧 PRESERVE original
+                    'faces_detected': faces_detected_eye,
                     'gaze_movements_detected': eye_confidence.get('gaze_movements_detected', []),  # 🔧 PRESERVE gaze movements
                     'method': eye_confidence.get('method', 'unknown'),
                     'timestamp': eye_confidence.get('timestamp', datetime.now().isoformat())

@@ -61,6 +61,8 @@ const InterviewSession = () => {
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   
+  console.log('🎤 InterviewSession component loaded with sessionId:', sessionId);
+  
   // Add CSS animation for real-time updates
   useEffect(() => {
     const style = document.createElement('style');
@@ -94,6 +96,17 @@ const InterviewSession = () => {
     voice_confidence: { confidence_level: 'unknown', confidence: 0 },
     overall: { confidence_score: 0.5, stress_score: 0.5 }
   });
+  
+  // Voice analysis from voice_analysis collection (30-second clips)
+  const [voiceAnalysisData, setVoiceAnalysisData] = useState({
+    confidence: null,
+    confidence_level: 'unknown',
+    audio_quality: null,  // Set to null initially to distinguish from actual silent audio
+    clip_id: null  // Track the clip_id to fetch only new analyses
+  });
+  
+  // Track the last processed clip_id to fetch only new analyses
+  const [lastProcessedClipId, setLastProcessedClipId] = useState(null);
   
   // Real-time analysis state for 10-second updates
   const [realtimeAnalysis, setRealtimeAnalysis] = useState({
@@ -168,8 +181,64 @@ const InterviewSession = () => {
   });
 
   useEffect(() => {
+    console.log('🎯 Main useEffect triggered with sessionId:', sessionId);
     loadInterview();
     initializeSocket();
+
+    // Fetch voice analysis from voice_analysis collection
+    const fetchVoiceAnalysis = async () => {
+      if (!sessionId) {
+        console.log('🎤 No sessionId, skipping voice analysis fetch');
+        return;
+      }
+      
+      try {
+        console.log('🎤 Fetching voice analysis from collection for:', sessionId, 'Last clip_id:', lastProcessedClipId);
+        
+        // Pass last_clip_id to fetch only NEW analyses
+        const response = await interviewService.getVoiceAnalysis(sessionId, lastProcessedClipId);
+        console.log('🎤 Voice analysis response:', response);
+        
+        if (response.status === 'success') {
+          // Check if there are new analyses
+          if (response.new_analyses && response.new_analyses.length > 0) {
+            console.log(`🎤 ✅ Found ${response.new_analyses.length} new voice analyses`);
+            
+            // Get the newest analysis (last one in the array)
+            const newestAnalysis = response.new_analyses[response.new_analyses.length - 1];
+            console.log('🎤 📊 Newest analysis:', newestAnalysis);
+            
+            // Update voice analysis data with the newest one
+            setVoiceAnalysisData(newestAnalysis);
+            
+            // Update last processed clip_id
+            if (newestAnalysis.clip_id) {
+              console.log('🎤 💾 Updating last processed clip_id:', newestAnalysis.clip_id);
+              setLastProcessedClipId(newestAnalysis.clip_id);
+            }
+          } else if (response.latest_analysis && !lastProcessedClipId) {
+            // First fetch - use latest_analysis
+            console.log('🎤 ✅ First fetch - using latest analysis:', response.latest_analysis);
+            setVoiceAnalysisData(response.latest_analysis);
+            if (response.latest_analysis.clip_id) {
+              setLastProcessedClipId(response.latest_analysis.clip_id);
+            }
+          } else {
+            console.log('🎤 ℹ️ No new analyses since last fetch');
+          }
+        } else {
+          console.log('🎤 ⚠️ Unexpected response status:', response.status);
+        }
+      } catch (error) {
+        console.error('🎤 ❌ Error fetching voice analysis:', error);
+      }
+    };
+
+    // Fetch immediately
+    fetchVoiceAnalysis();
+    
+    // Then fetch every 30 seconds (matches voice clip analysis interval)
+    const voiceAnalysisInterval = setInterval(fetchVoiceAnalysis, 30000);
 
     // Listen for analysis updates
     const handleAnalysisUpdate = async (event) => {
@@ -238,6 +307,7 @@ const InterviewSession = () => {
 
     return () => {
       console.log('🧹 Component unmounting - running cleanup...');
+      clearInterval(voiceAnalysisInterval);
       cleanupInterview();
       window.removeEventListener('analysisUpdate', handleAnalysisUpdate);
       window.removeEventListener('sessionJoined', handleSessionJoined);
@@ -313,6 +383,16 @@ const InterviewSession = () => {
         }
         return level === 'stress' ? 1 : 0;
       } else if (type === 'confidence_level') {
+        // Handle no detection - don't chart it (return null to skip)
+        // Check for hand detection
+        if (level === 'no_hands_detected' || level === 'no_hand_detected' || (analysisData.hands_detected === 0)) {
+          return null; // Don't add to chart
+        }
+        // Check for eye detection
+        if (level === 'no_eyes_detected' || level === 'no_face_detected' || 
+            (analysisData.faces_detected === 0) || (analysisData.eyes_detected === 0)) {
+          return null; // Don't add to chart
+        }
         return level === 'confident' ? 1 : 0;
       }
       
@@ -345,24 +425,28 @@ const InterviewSession = () => {
     const eyeConfValue = convertToChartValue(results.eye_confidence, 'confidence_level');
     const voiceConfValue = convertToChartValue(results.voice_confidence, 'confidence_level');
     
-    setConfidenceChartData(prevData => {
-      const newData = { ...prevData };
-      
-      // Keep only last 20 data points
-      if (newData.labels.length >= 20) {
-        newData.labels.shift();
-        newData.datasets[0].data.shift(); // Hand
-        newData.datasets[1].data.shift(); // Eye
-        newData.datasets[2].data.shift(); // Voice
-      }
+    // Only update chart if we have at least one valid detection (not all null)
+    if (handConfValue !== null || eyeConfValue !== null || voiceConfValue !== null) {
+      setConfidenceChartData(prevData => {
+        const newData = { ...prevData };
+        
+        // Keep only last 20 data points
+        if (newData.labels.length >= 20) {
+          newData.labels.shift();
+          newData.datasets[0].data.shift(); // Hand
+          newData.datasets[1].data.shift(); // Eye
+          newData.datasets[2].data.shift(); // Voice
+        }
 
-      newData.labels.push(currentTime);
-      newData.datasets[0].data.push(handConfValue);  // Hand Confidence
-      newData.datasets[1].data.push(eyeConfValue);   // Eye Contact
-      newData.datasets[2].data.push(voiceConfValue); // Voice Confidence
+        newData.labels.push(currentTime);
+        // Use 0 for null values (no detection) but still add to chart if others are valid
+        newData.datasets[0].data.push(handConfValue !== null ? handConfValue : 0);  // Hand Confidence
+        newData.datasets[1].data.push(eyeConfValue !== null ? eyeConfValue : 0);   // Eye Contact
+        newData.datasets[2].data.push(voiceConfValue !== null ? voiceConfValue : 0); // Voice Confidence
 
-      return newData;
-    });
+        return newData;
+      });
+    }
   };
 
   const startInterview = async () => {
@@ -630,6 +714,18 @@ const InterviewSession = () => {
       return { label: 'idle', color: '#9CA3AF', progress: 0 };
     }
     
+    // Check for no hand detected (similar to face/eye detection)
+    if (confidenceData && (confidenceData.hands_detected === 0 || 
+        confidenceData.confidence_level === 'no_hands_detected' || confidenceData.confidence_level === 'no_hand_detected')) {
+      return { label: 'no hand detected', color: '#FF9800', progress: 0 };
+    }
+    
+    // Check for no eye detected (similar to face detection)
+    if (confidenceData && (confidenceData.faces_detected === 0 || confidenceData.eyes_detected === 0 || 
+        confidenceData.confidence_level === 'no_eyes_detected' || confidenceData.confidence_level === 'no_face_detected')) {
+      return { label: 'no eye detected', color: '#FF9800', progress: 0 };
+    }
+    
     if (!confidenceData || !confidenceData.confidence_level || confidenceData.confidence_level === 'no_data') {
       return { label: 'analyzing...', color: '#9CA3AF', progress: 0 };
     }
@@ -647,6 +743,74 @@ const InterviewSession = () => {
       return { label: 'confidence', color: '#4CAF50', progress: 75 };
     }
     return { label: 'non confidence', color: '#F44336', progress: 25 };
+  };
+
+  // Special function for voice confidence using voice_analysis collection data
+  const getVoiceConfidenceDisplay = () => {
+    console.log('🎤 getVoiceConfidenceDisplay called with data:', voiceAnalysisData);
+    
+    // Show idle state before interview starts
+    if (!isInterviewActive) {
+      console.log('🎤 Interview not active, showing idle');
+      return { label: 'idle', color: '#9CA3AF', progress: 0 };
+    }
+    
+    // First check confidence_level string (most reliable)
+    const confidenceLevel = (voiceAnalysisData.confidence_level || 'unknown').toLowerCase();
+    console.log('🎤 Confidence level:', confidenceLevel);
+    
+    // Check for no audio states FIRST
+    if (confidenceLevel === 'no_audio_detected' || 
+        confidenceLevel === 'no_audio' || 
+        confidenceLevel === 'silent') {
+      console.log('🎤 Detected no audio state');
+      return { label: 'no audio detected', color: '#FF9800', progress: 0 };
+    }
+    
+    // Check if we have audio_quality data to determine if it's truly silent
+    const audioQuality = voiceAnalysisData.audio_quality;
+    if (audioQuality && typeof audioQuality === 'object') {
+      const rms = audioQuality.rms;
+      const frequencyCoverage = audioQuality.frequency_coverage;
+      const isSilent = audioQuality.is_silent;
+      
+      console.log('🎤 Audio quality - RMS:', rms, 'Frequency:', frequencyCoverage, 'Silent:', isSilent);
+      
+      // Only show "no audio detected" if explicitly marked as silent OR both values are EXACTLY 0
+      if (isSilent === true || (rms === 0 && frequencyCoverage === 0)) {
+        console.log('🎤 Audio is silent');
+        return { label: 'no audio detected', color: '#FF9800', progress: 0 };
+      }
+    }
+    
+    // Check confidence_level string for confident/not_confident
+    if (confidenceLevel === 'confident') {
+      console.log('🎤 Showing confident');
+      return { label: 'confidence', color: '#4CAF50', progress: 75 };
+    } else if (confidenceLevel === 'not_confident') {
+      console.log('🎤 Showing not_confident');
+      return { label: 'non confidence', color: '#F44336', progress: 25 };
+    }
+    
+    // Check numeric confidence value
+    const confidence = voiceAnalysisData.confidence;
+    console.log('🎤 Numeric confidence:', confidence, 'Type:', typeof confidence);
+    
+    // If we have a numeric confidence value and it's not null/undefined
+    if (confidence !== null && confidence !== undefined && confidenceLevel !== 'unknown') {
+      // Treat any positive confidence as having data
+      if (confidence >= 0.5) {
+        console.log('🎤 Confidence >= 0.5, showing confident');
+        return { label: 'confidence', color: '#4CAF50', progress: 75 };
+      } else {
+        console.log('🎤 Confidence < 0.5, showing not_confident');
+        return { label: 'non confidence', color: '#F44336', progress: 25 };
+      }
+    }
+    
+    // Default analyzing state (when no data yet)
+    console.log('🎤 No valid data, showing analyzing...');
+    return { label: 'analyzing...', color: '#9CA3AF', progress: 0 };
   };
 
   if (isLoading) {
@@ -1473,9 +1637,9 @@ const InterviewSession = () => {
                 </Box>
                 <Box sx={{ mb: 2 }}>
                   <Chip
-                    label={getConfidenceDisplay(analysisResults.voice_confidence).label}
+                    label={getVoiceConfidenceDisplay().label}
                     sx={{
-                      backgroundColor: getConfidenceDisplay(analysisResults.voice_confidence).color,
+                      backgroundColor: getVoiceConfidenceDisplay().color,
                       color: 'white',
                       fontWeight: 500,
                       borderRadius: '8px',
@@ -1486,13 +1650,13 @@ const InterviewSession = () => {
                 </Box>
                 <LinearProgress
                   variant="determinate"
-                  value={getConfidenceDisplay(analysisResults.voice_confidence).progress}
+                  value={getVoiceConfidenceDisplay().progress}
                   sx={{
                     height: 6,
                     borderRadius: 3,
                     backgroundColor: 'rgba(147, 51, 234, 0.1)',
                     '& .MuiLinearProgress-bar': {
-                      backgroundColor: getConfidenceDisplay(analysisResults.voice_confidence).color,
+                      backgroundColor: getVoiceConfidenceDisplay().color,
                       borderRadius: 3
                     }
                   }}

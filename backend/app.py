@@ -932,6 +932,113 @@ def get_voice_clips(interview_id):
         logger.error(f"Error getting voice clips: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/api/interviews/<interview_id>/voice-analysis', methods=['GET'])
+def get_voice_analysis(interview_id):
+    """Get voice analysis results from voice_analysis collection for real-time display"""
+    user_id = get_user_id_from_request()
+    
+    if not user_id:
+        return jsonify({'status': 'error', 'message': 'User ID is required'}), 400
+    
+    # Get optional last_clip_id parameter to fetch only new analyses
+    last_clip_id = request.args.get('last_clip_id', None)
+    
+    try:
+        db_manager = DatabaseManager()
+        
+        # Verify interview exists and belongs to user
+        interview = db_manager.get_interview(interview_id)
+        if not interview or interview.get('user_id') != user_id:
+            return jsonify({'status': 'error', 'message': 'Interview not found'}), 404
+        
+        # Get all voice analysis results for the interview
+        voice_analysis_results = db_manager.get_voice_analysis_for_interview(interview_id)
+        
+        if not voice_analysis_results:
+            # Return default state if no analysis yet
+            return jsonify({
+                'status': 'success',
+                'latest_analysis': None,
+                'new_analyses': [],
+                'total_clips': 0
+            })
+        
+        # If last_clip_id is provided, return only NEW analyses after that clip
+        new_analyses = []
+        if last_clip_id:
+            found_last = False
+            for analysis in voice_analysis_results:
+                if found_last:
+                    new_analyses.append(analysis)
+                elif analysis.get('clip_id') == last_clip_id:
+                    found_last = True
+            
+            logger.info(f"📊 Found {len(new_analyses)} new analyses after clip_id: {last_clip_id}")
+        else:
+            # If no last_clip_id, return all analyses
+            new_analyses = voice_analysis_results
+            logger.info(f"📊 Returning all {len(new_analyses)} analyses (no last_clip_id provided)")
+        
+        # Get the most recent analysis for real-time display
+        latest_analysis = voice_analysis_results[-1] if voice_analysis_results else None
+        
+        # Process latest analysis
+        latest_result = None
+        if latest_analysis:
+            audio_quality = latest_analysis.get('audio_quality', {})
+            rms = audio_quality.get('rms', 0)
+            frequency_coverage = audio_quality.get('frequency_coverage', 0)
+            is_silent = (rms == 0 and frequency_coverage == 0) or audio_quality.get('is_silent', False)
+            
+            latest_result = {
+                'clip_id': latest_analysis.get('clip_id', ''),
+                'analysis_id': latest_analysis.get('analysis_id', ''),
+                'confidence': latest_analysis.get('confidence', 0),
+                'confidence_level': 'no_audio_detected' if is_silent else latest_analysis.get('confidence_level', 'unknown'),
+                'emotion': latest_analysis.get('emotion', 'neutral'),
+                'audio_quality': {
+                    'rms': rms,
+                    'frequency_coverage': frequency_coverage,
+                    'quality_score': audio_quality.get('quality_score', 0),
+                    'is_silent': is_silent
+                },
+                'timestamp': latest_analysis.get('timestamp', '')
+            }
+        
+        # Process new analyses with clip_id
+        processed_new_analyses = []
+        for analysis in new_analyses:
+            audio_quality = analysis.get('audio_quality', {})
+            rms = audio_quality.get('rms', 0)
+            frequency_coverage = audio_quality.get('frequency_coverage', 0)
+            is_silent = (rms == 0 and frequency_coverage == 0) or audio_quality.get('is_silent', False)
+            
+            processed_new_analyses.append({
+                'clip_id': analysis.get('clip_id', ''),
+                'analysis_id': analysis.get('analysis_id', ''),
+                'confidence': analysis.get('confidence', 0),
+                'confidence_level': 'no_audio_detected' if is_silent else analysis.get('confidence_level', 'unknown'),
+                'emotion': analysis.get('emotion', 'neutral'),
+                'audio_quality': {
+                    'rms': rms,
+                    'frequency_coverage': frequency_coverage,
+                    'quality_score': audio_quality.get('quality_score', 0),
+                    'is_silent': is_silent
+                },
+                'timestamp': analysis.get('timestamp', '')
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'latest_analysis': latest_result,
+            'new_analyses': processed_new_analyses,
+            'total_clips': len(voice_analysis_results)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting voice analysis: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/api/interviews/<interview_id>/analysis', methods=['POST'])
 def save_interview_analysis(interview_id):
     """Save real-time analysis data for interview"""

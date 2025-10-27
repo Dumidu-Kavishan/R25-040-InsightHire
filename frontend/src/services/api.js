@@ -126,6 +126,12 @@ export const interviewService = {
     return response.data;
   },
 
+  getVoiceAnalysis: async (interviewId, lastClipId = null) => {
+    const params = lastClipId ? { last_clip_id: lastClipId } : {};
+    const response = await api.get(`/interviews/${interviewId}/voice-analysis`, { params });
+    return response.data;
+  },
+
   getInterviewSummary: async (interviewId) => {
     const response = await api.get(`/interviews/${interviewId}/summary`);
     return response.data;

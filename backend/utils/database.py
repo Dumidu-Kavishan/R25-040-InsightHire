@@ -963,8 +963,13 @@ class DatabaseManager:
     def save_voice_clip(self, clip_data):
         """Save a 30-second voice clip from an interview"""
         try:
-            clip_id = str(uuid.uuid4())
-            logger.info(f"🎙️ Creating voice_clips document with ID: {clip_id}")
+            # Use clip_id from frontend if provided, otherwise generate new one
+            clip_id = clip_data.get('clip_id')
+            if clip_id:
+                logger.info(f"🎙️ Using clip_id from frontend: {clip_id}")
+            else:
+                clip_id = str(uuid.uuid4())
+                logger.info(f"🎙️ Generated new clip_id: {clip_id}")
             
             voice_clip_data = {
                 'clip_id': clip_id,
@@ -979,12 +984,12 @@ class DatabaseManager:
             }
             
             logger.info(f"📝 Saving to collection 'voice_clips'...")
-            logger.info(f"📊 Data: interview_id={voice_clip_data['interview_id']}, interviewer_id={voice_clip_data['interviewer_id']}, duration={voice_clip_data['duration']}")
+            logger.info(f"📊 Data: clip_id={clip_id}, interview_id={voice_clip_data['interview_id']}, interviewer_id={voice_clip_data['interviewer_id']}, duration={voice_clip_data['duration']}")
             
             voice_clip_ref = self.db.collection('voice_clips').document(clip_id)
             voice_clip_ref.set(voice_clip_data)
             
-            logger.info(f"✅ Voice clip document created in 'voice_clips' collection with ID: {clip_id}")
+            logger.info(f"✅ Voice clip document created in 'voice_clips' collection with clip_id: {clip_id}")
             return clip_id
         except Exception as e:
             logger.error(f"❌ Error saving voice clip to 'voice_clips' collection: {e}")
