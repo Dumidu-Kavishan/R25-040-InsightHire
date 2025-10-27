@@ -90,7 +90,7 @@ const InterviewSession = () => {
   const screenRecorderRef = useRef(null);
   
   const [analysisResults, setAnalysisResults] = useState({
-    face_stress: { stress_level: 'unknown', confidence: 0 },
+    face_stress: { stress_level: 'unknown', confidence: 0, emotion: 'neutral' },
     hand_confidence: { confidence_level: 'unknown', confidence: 0 },
     eye_confidence: { confidence_level: 'unknown', confidence: 0 },
     voice_confidence: { confidence_level: 'unknown', confidence: 0 },
@@ -140,7 +140,7 @@ const InterviewSession = () => {
     labels: [],
     datasets: [
       {
-        label: 'Face Stress Level',
+        label: 'Face Stress',
         data: [],
         borderColor: '#EF4444',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -399,7 +399,7 @@ const InterviewSession = () => {
       return 0;
     };
 
-    // Update Stress Chart (Face Stress only)
+    // Update Stress Chart (Face Stress & Emotion)
     const faceStressValue = convertToChartValue(results.face_stress, 'stress_level');
     
     // Only update chart if we have a valid face detection (not null)
@@ -665,7 +665,7 @@ const InterviewSession = () => {
       setIsInterviewActive(false);
       setIsAnalysisActive(false);
       setAnalysisResults({
-        face_stress: { stress_level: 'unknown', confidence: 0 },
+        face_stress: { stress_level: 'unknown', confidence: 0, emotion: 'neutral' },
         hand_confidence: { confidence_level: 'unknown', confidence: 0 },
         eye_confidence: { confidence_level: 'unknown', confidence: 0 },
         voice_confidence: { confidence_level: 'unknown', confidence: 0 },
@@ -677,35 +677,72 @@ const InterviewSession = () => {
   };
 
 
+  // Helper function to get emotion details
+  const getEmotionDetails = (emotion) => {
+    const emotionMap = {
+      'happy': { emoji: '😊', label: 'Happy', color: '#4CAF50' },
+      'sad': { emoji: '😢', label: 'Sad', color: '#2196F3' },
+      'angry': { emoji: '😠', label: 'Angry', color: '#F44336' },
+      'fear': { emoji: '😨', label: 'Fear', color: '#FF9800' },
+      'surprise': { emoji: '😮', label: 'Surprise', color: '#9C27B0' },
+      'disgust': { emoji: '🤢', label: 'Disgust', color: '#795548' },
+      'neutral': { emoji: '😐', label: 'Neutral', color: '#607D8B' }
+    };
+    return emotionMap[emotion?.toLowerCase()] || emotionMap['neutral'];
+  };
+
   // Helper functions to convert analysis to simple binary displays
   const getStressDisplay = (faceStress) => {
     // Show idle state before interview starts
     if (!isInterviewActive) {
-      return { label: 'idle', color: '#9CA3AF', progress: 0 };
+      return { label: 'idle', color: '#9CA3AF', progress: 0, emotion: null };
     }
     
     // Check for no face detected
     if (faceStress && (faceStress.faces_detected === 0 || faceStress.stress_level === 'no_face_detected')) {
-      return { label: 'no face detected', color: '#FF9800', progress: 0 };
+      return { label: 'no face detected', color: '#FF9800', progress: 0, emotion: null };
     }
     
     if (!faceStress || !faceStress.stress_level || faceStress.stress_level === 'no_data') {
-      return { label: 'analyzing...', color: '#9CA3AF', progress: 0 };
+      return { label: 'analyzing...', color: '#9CA3AF', progress: 0, emotion: null };
     }
     
     const stressLevel = faceStress.stress_level.toLowerCase();
+    const emotion = faceStress.emotion || 'neutral';
+    const emotionDetails = getEmotionDetails(emotion);
+    
     // Handle backend converted values: 'stress' or 'non_stress'
     if (stressLevel === 'stress') {
-      return { label: 'stress', color: '#F44336', progress: 75 };
+      return { 
+        label: 'stress', 
+        color: '#F44336', 
+        progress: 75,
+        emotion: emotionDetails
+      };
     } else if (stressLevel === 'non_stress') {
-      return { label: 'non stress', color: '#4CAF50', progress: 25 };
+      return { 
+        label: 'non stress', 
+        color: '#4CAF50', 
+        progress: 25,
+        emotion: emotionDetails
+      };
     }
     
     // Handle original complex values as fallback
     if (stressLevel.includes('stress') && !stressLevel.includes('not') && !stressLevel.includes('low') && !stressLevel.includes('non')) {
-      return { label: 'stress', color: '#F44336', progress: 75 };
+      return { 
+        label: 'stress', 
+        color: '#F44336', 
+        progress: 75,
+        emotion: emotionDetails
+      };
     }
-    return { label: 'non stress', color: '#4CAF50', progress: 25 };
+    return { 
+      label: 'non stress', 
+      color: '#4CAF50', 
+      progress: 25,
+      emotion: emotionDetails
+    };
   };
 
   const getConfidenceDisplay = (confidenceData) => {
@@ -840,7 +877,7 @@ const InterviewSession = () => {
       },
       title: {
         display: true,
-        text: 'Face Stress Level',
+        text: 'Face Stress & Emotion',
         font: {
           size: 16,
           weight: 600
@@ -1280,7 +1317,7 @@ const InterviewSession = () => {
             
             {/* Enhanced Two Charts Layout */}
             <Grid container spacing={2}>
-              {/* Stress Level Chart */}
+              {/* Stress & Emotion Chart */}
               <Grid item xs={12} lg={6}>
                 <Box sx={{ 
                   height: 400,
@@ -1457,14 +1494,14 @@ const InterviewSession = () => {
                   </Box>
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, color: isDarkMode ? '#FFFFFF' : '#1A202C' }}>
-                      Stress Level
+                      Stress & Emotion
                     </Typography>
                     <Typography variant="caption" sx={{ color: isDarkMode ? '#E2E8F0' : '#718096' }}>
                       Facial expression analysis
                     </Typography>
                   </Box>
                 </Box>
-                <Box sx={{ mb: 2 }}>
+                <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                   <Chip
                     label={getStressDisplay(analysisResults.face_stress).label}
                     sx={{
@@ -1476,6 +1513,27 @@ const InterviewSession = () => {
                     }}
                     size="small"
                   />
+                  {getStressDisplay(analysisResults.face_stress).emotion && (
+                    <Chip
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <span style={{ fontSize: '1.1rem' }}>
+                            {getStressDisplay(analysisResults.face_stress).emotion.emoji}
+                          </span>
+                          <span>{getStressDisplay(analysisResults.face_stress).emotion.label}</span>
+                        </Box>
+                      }
+                      sx={{
+                        backgroundColor: isDarkMode ? '#2D3748' : '#F7FAFC',
+                        color: getStressDisplay(analysisResults.face_stress).emotion.color,
+                        fontWeight: 500,
+                        borderRadius: '8px',
+                        fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                        border: `1px solid ${getStressDisplay(analysisResults.face_stress).emotion.color}`
+                      }}
+                      size="small"
+                    />
+                  )}
                 </Box>
                 <LinearProgress
                   variant="determinate"
