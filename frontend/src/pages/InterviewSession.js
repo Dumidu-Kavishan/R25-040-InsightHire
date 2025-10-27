@@ -44,6 +44,7 @@ import { interviewService } from '../services/api';
 import socketService from '../services/socket';
 import { toast } from 'react-toastify';
 import ScreenRecorder from '../components/ScreenRecorder';
+import HandGestureDisplay from '../components/HandGestureDisplay';
 import { useTheme } from '../contexts/ThemeContext';
 
 ChartJS.register(
@@ -1342,6 +1343,12 @@ const InterviewSession = () => {
                   }}
                 />
               </Box>
+
+              {/* Hand Gesture Display - Additional Firebase Real-time Display */}
+              <HandGestureDisplay 
+                handConfidenceData={analysisResults.hand_confidence} 
+                isDarkMode={isDarkMode}
+              />
 
               {/* Eye Confidence Analysis */}
               <Box sx={{ 

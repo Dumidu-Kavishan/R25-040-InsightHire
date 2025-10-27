@@ -16,7 +16,7 @@ import json
 from model.face_model import FaceStressDetector
 from hand_model_client import hand_client
 # REMOVED: from model.eye_model import EyeConfidenceDetector - Using pure gaze tracking server instead
-from model.voice_model import VoiceConfidenceDetector
+from voice_model_client import VoiceModelClient
 from utils.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,8 @@ class RealTimeAnalyzer:
         # HAND MODEL: Using dedicated server on port 5002 via hand_client
         # PURE GAZE TRACKING: Using dedicated server on port 5001 (NO fallback)
         self.gaze_server_url = 'http://localhost:5001'
-        self.voice_detector = VoiceConfidenceDetector()
+        # VOICE MODEL: Using dedicated server on port 5003 via voice_client
+        self.voice_client = VoiceModelClient('http://localhost:5003')
         
         # Video processing
         self.video_frame_queue = queue.Queue(maxsize=10)
@@ -539,10 +540,10 @@ class RealTimeAnalyzer:
             buffer_duration = len(combined_audio) / sample_rate
             logger.info(f"🎤 Analyzing {len(combined_audio)} samples ({buffer_duration:.1f}s) from {len(self.audio_buffer)} chunks")
             
-            # Voice confidence detection on combined audio
-            logger.info("🎤 Calling voice detector...")
-            voice_result = self.voice_detector.detect_confidence_from_audio_data(combined_audio, sample_rate)
-            logger.info(f"🎤 Voice detector returned: {voice_result}")
+            # Voice confidence detection on combined audio using dedicated server
+            logger.info("🎤 Calling voice model server...")
+            voice_result = self.voice_client.analyze_voice_clip(combined_audio, sample_rate)
+            logger.info(f"🎤 Voice model server returned: {voice_result}")
             
             if voice_result and 'confidence_level' in voice_result:
                 self.current_results['voice_confidence'] = voice_result

@@ -3,15 +3,16 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Firebase configuration
+// Firebase configuration - Updated to match backend
 const firebaseConfig = {
   apiKey: "AIzaSyBzCoLk3TdLHDWiQjDjfsuK3vR_7Pp_0I4",
-  authDomain: "test-36118.firebaseapp.com", 
-  projectId: "test-36118",
-  storageBucket: "test-36118.appspot.com",
+  authDomain: "insighthire-335a6.firebaseapp.com", 
+  projectId: "insighthire-335a6",
+  storageBucket: "insighthire-335a6.appspot.com",
   messagingSenderId: "112669972686836625710",
   appId: "1:112669972686836625710:web:6e0ba04caee8c47783bfc0",
-  measurementId: "G-3K2T4SBB0K"
+  measurementId: "G-3K2T4SBB0K",
+  databaseURL: "https://insighthire-335a6-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 // Initialize Firebase
